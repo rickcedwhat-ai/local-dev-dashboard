@@ -1,0 +1,20 @@
+{
+  "projects": [
+    {
+      "id": "my-app",
+      "name": "My Sample App",
+      "directory": "C:\\projects\\my-app",
+      "description": "Vite React frontend",
+      "services": [
+        {
+          "id": "my-app-dev",
+          "name": "Dev Server",
+          "command": "npm",
+          "args": ["run", "dev", "--", "--port", "5173"],
+          "port": 5173,
+          "url": "http://localhost:5173"
+        }
+      ]
+    }
+  ]
+}

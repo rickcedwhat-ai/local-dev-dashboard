@@ -1,0 +1,10 @@
+{
+  "name": "dev-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local process control plane and port dashboard",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

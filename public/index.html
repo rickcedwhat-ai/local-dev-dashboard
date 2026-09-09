@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Dev Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --muted: #8b949e;
+      --primary: #58a6ff;
+      --primary-hover: #79c0ff;
+      --success: #2ea043;
+      --success-glow: rgba(46, 160, 67, 0.4);
+      --danger: #f85149;
+      --danger-hover: #da3633;
+      --warning: #d29922;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .title-group h1 {
+      font-size: 24px;
+      color: var(--text-bright);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title-group p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .stats-badge {
+      background: #21262d;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: var(--text-bright);
+    }
+
+    .projects-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .project-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .project-card:hover {
+      border-color: #484f58;
+    }
+
+    .project-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .project-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-bright);
+    }
+
+    .project-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .project-dir {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #6e7681;
+      background: #0d1117;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid #21262d;
+      margin-top: 6px;
+      display: inline-block;
+      word-break: break-all;
+    }
+
+    .services-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .service-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .service-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #484f58;
+      flex-shrink: 0;
+    }
+
+    .status-dot.active {
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success-glow);
+    }
+
+    .status-dot.external {
+      background: var(--primary);
+      box-shadow: 0 0 8px rgba(88, 166, 255, 0.4);
+    }
+
+    .status-dot.zombie {
+      background: var(--warning);
+      box-shadow: 0 0 8px rgba(210, 153, 34, 0.4);
+    }
+
+    .service-name {
+      font-weight: 500;
+      color: var(--text-bright);
+      font-size: 14px;
+    }
+
+    .service-cmd {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: #161b22;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .port-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .port-tag.active {
+      color: var(--text-bright);
+      border-color: var(--success);
+      background: rgba(46, 160, 67, 0.15);
+      cursor: pointer;
+    }
+
+    .port-tag.active:hover {
+      background: rgba(46, 160, 67, 0.3);
+      text-decoration: underline;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-badge.running {
+      background: rgba(46, 160, 67, 0.2);
+      color: #3fb950;
+      border: 1px solid rgba(46, 160, 67, 0.3);
+    }
+
+    .status-badge.external {
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+    }
+
+    .status-badge.zombie {
+      background: rgba(210, 153, 34, 0.2);
+      color: var(--warning);
+      border: 1px solid rgba(210, 153, 34, 0.4);
+    }
+
+    .status-badge.starting {
+      background: rgba(210, 153, 34, 0.2);
+      color: var(--warning);
+      border: 1px solid rgba(210, 153, 34, 0.4);
+    }
+
+    .status-badge.stopped {
+      background: #21262d;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    @keyframes pulse-yellow {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(210, 153, 34, 0.8); }
+      70% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(210, 153, 34, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(210, 153, 34, 0); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .status-dot.starting {
+      background: var(--warning);
+      animation: pulse-yellow 1.4s infinite;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border: 2px solid rgba(210, 153, 34, 0.3);
+      border-top-color: var(--warning);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .starting-banner {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #e3b341;
+      background: rgba(210, 153, 34, 0.1);
+      border: 1px solid rgba(210, 153, 34, 0.25);
+      border-radius: 4px;
+      padding: 4px 8px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 600px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .health-pill {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid #30363d;
+    }
+
+    .health-pill.ok {
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.4);
+    }
+
+    .health-pill.warn {
+      color: #d29922;
+      border-color: rgba(210, 153, 34, 0.4);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text-bright);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button.btn-primary {
+      background: #238636;
+      border-color: rgba(240, 246, 252, 0.1);
+      color: #fff;
+    }
+
+    button.btn-primary:hover:not(:disabled) {
+      background: #2ea043;
+    }
+
+    button.btn-relaunch {
+      background: #1f6feb;
+      border-color: rgba(240, 246, 252, 0.1);
+      color: #fff;
+    }
+
+    button.btn-relaunch:hover:not(:disabled) {
+      background: #388bfd;
+    }
+
+    button.btn-danger {
+      color: #f85149;
+    }
+
+    button.btn-danger:hover:not(:disabled) {
+      background: rgba(248, 81, 73, 0.15);
+      border-color: #f85149;
+    }
+
+    button.btn-icon {
+      padding: 3px 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--muted);
+      border-radius: 4px;
+      line-height: 1;
+    }
+
+    button.btn-icon:hover {
+      background: #21262d;
+      border-color: var(--border);
+      color: var(--text-bright);
+    }
+
+    /* Logs Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 900px;
+      height: 600px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .terminal-body {
+      flex: 1;
+      background: #090d13;
+      padding: 16px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: #e6edf3;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-line {
+      display: block;
+    }
+
+    .log-line.system {
+      color: #58a6ff;
+    }
+
+    .log-line.error {
+      color: #f85149;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #21262d;
+      color: #f0f6fc;
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-group">
+        <h1>Local Dev Dashboard</h1>
+        <p>Real-time port monitor, zombie process cleaner, and process control</p>
+      </div>
+      <div class="header-actions">
+        <div id="stats" class="stats-badge">Checking servers...</div>
+        <button class="btn-primary" onclick="restartAll()" title="Relaunch all configured services under dashboard management">Restart All</button>
+        <button class="btn-danger" onclick="stopAll()" title="Stop all services and free all ports">Stop All</button>
+        <button onclick="fetchStatus()">Refresh</button>
+      </div>
+    </header>
+
+    <div id="projects-container" class="projects-grid">
+      <!-- Injected by JavaScript -->
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Logs Modal -->
+  <div id="log-modal" class="modal-backdrop" onclick="closeLogModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div id="modal-service-title" class="modal-title">Logs</div>
+        <div class="modal-actions">
+          <button onclick="clearTerminal()">Clear</button>
+          <button onclick="closeLogModal()">Close</button>
+        </div>
+      </div>
+      <div id="terminal" class="terminal-body"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentLogServiceId = null;
+    let eventSource = null;
+    const pendingStarts = new Set();
+    let lastProjects = [];
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const projects = await res.json();
+        lastProjects = projects;
+        renderProjects(projects);
+      } catch (err) {
+        console.error('Failed to fetch status:', err);
+      }
+    }
+
+    function renderProjects(projects) {
+      const container = document.getElementById('projects-container');
+      let activePortsCount = 0;
+      let totalServices = 0;
+
+      let html = '';
+
+      for (const proj of projects) {
+        html += `
+          <div class="project-card">
+            <div class="project-header">
+              <div>
+                <div class="project-name">${escapeHtml(proj.name)}</div>
+                <div class="project-desc">${escapeHtml(proj.description || '')}</div>
+                <div class="project-dir">${escapeHtml(proj.directory)}</div>
+              </div>
+            </div>
+            <div class="services-list">
+        `;
+
+        for (const s of proj.services) {
+          totalServices++;
+          if (s.isPortOpen) activePortsCount++;
+
+          if (s.isPortOpen) {
+            pendingStarts.delete(s.id);
+          }
+
+          const isStarting = (s.isStarting || pendingStarts.has(s.id)) && !s.isPortOpen;
+          const isRunning = s.dashboardRunning && !isStarting;
+          const isExternal = s.isExternal && !isStarting;
+          const isPortOpen = s.isPortOpen;
+          const health = s.httpHealth;
+
+          let dotClass = '';
+          let badgeHtml = '';
+          let healthHtml = '';
+          let bannerHtml = '';
+
+          if (isStarting) {
+            dotClass = 'starting';
+            const pidText = s.pid ? ` (PID ${s.pid})` : '';
+            badgeHtml = `<span class="status-badge starting"><span class="spinner"></span> Starting / Bundling${pidText}...</span>`;
+            if (s.lastLog) {
+              bannerHtml = `<div class="starting-banner" title="${escapeHtml(s.lastLog)}"><span class="spinner"></span> ${escapeHtml(s.lastLog)}</div>`;
+            } else {
+              bannerHtml = `<div class="starting-banner"><span class="spinner"></span> Spawning process, waiting for port :${s.port}...</div>`;
+            }
+          } else if (isRunning) {
+            dotClass = 'active';
+            badgeHtml = `<span class="status-badge running">Running (PID ${s.pid || ''})</span>`;
+          } else if (isExternal) {
+            const isUnresponsive = health && !health.responsive;
+            dotClass = isUnresponsive ? 'zombie' : 'external';
+            const procLabel = s.externalProcess ? `${s.externalProcess} (PID ${s.pid || '?'})` : `External PID ${s.pid || '?'}`;
+            const memLabel = s.externalMem ? ` • ${s.externalMem}` : '';
+            badgeHtml = `<span class="status-badge ${isUnresponsive ? 'zombie' : 'external'}">${escapeHtml(procLabel + memLabel)}</span>`;
+          } else {
+            badgeHtml = `<span class="status-badge stopped">Stopped</span>`;
+          }
+
+          if (health && !isStarting) {
+            if (health.responsive) {
+              healthHtml = `<span class="health-pill ok" title="HTTP responding">HTTP ${health.status}</span>`;
+            } else {
+              healthHtml = `<span class="health-pill warn" title="Port open but HTTP request timed out (possible zombie process after sleep)">Zombie (${health.status})</span>`;
+            }
+          }
+
+          const portLink = s.url || `http://localhost:${s.port}`;
+          const cmdText = `${s.command} ${(s.args || []).join(' ')}`;
+
+          html += `
+            <div class="service-row">
+              <div class="service-info">
+                <div class="status-dot ${dotClass}" title="${isStarting ? 'Server starting...' : isPortOpen ? 'Port listening' : 'Port closed'}"></div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span class="service-name">${escapeHtml(s.name)}</span>
+                    ${badgeHtml}
+                    ${healthHtml}
+                  </div>
+                  <span class="service-cmd">${escapeHtml(cmdText)}</span>
+                  ${bannerHtml}
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 8px;">
+                ${s.port ? `
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <a href="${portLink}" target="_blank" rel="noopener noreferrer" class="port-tag ${isPortOpen ? 'active' : ''}">
+                      :${s.port} ↗
+                    </a>
+                    <button class="btn-icon" title="Change Port" onclick="promptChangePort('${s.id}', ${s.port})">✏️</button>
+                  </div>
+                ` : ''}
+
+                <div class="actions">
+                  ${isStarting ? `
+                    <button class="btn-primary" disabled><span class="spinner"></span> Starting...</button>
+                  ` : ''}
+
+                  ${!isRunning && !isExternal && !isStarting ? `
+                    <button class="btn-primary" onclick="startService('${s.id}')">Start</button>
+                  ` : ''}
+
+                  ${isRunning ? `
+                    <button class="btn-danger" onclick="stopService('${s.id}')">Stop</button>
+                    <button onclick="restartService('${s.id}')">Restart</button>
+                  ` : ''}
+
+                  ${isExternal ? `
+                    <button class="btn-relaunch" onclick="restartService('${s.id}')" title="Kill external process and take over via dashboard">Relaunch</button>
+                    <button class="btn-danger" onclick="killPort(${s.port})" title="Terminate external process holding this port">Kill Port</button>
+                  ` : ''}
+
+                  <button onclick="openLogs('${s.id}', '${escapeHtml(s.name)}')">Logs</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        html += `
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      document.getElementById('stats').textContent = `${activePortsCount} of ${totalServices} ports active`;
+    }
+
+    async function startService(serviceId) {
+      try {
+        pendingStarts.add(serviceId);
+        if (lastProjects.length) renderProjects(lastProjects);
+        showToast('Starting service, waiting for port...');
+        const res = await fetch('/api/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId })
+        });
+        const data = await res.json();
+        if (data.error) {
+          pendingStarts.delete(serviceId);
+          alert(data.error);
+        }
+        fetchStatus();
+      } catch (err) {
+        pendingStarts.delete(serviceId);
+        alert('Failed to start service: ' + err.message);
+      }
+    }
+
+    async function stopService(serviceId) {
+      try {
+        pendingStarts.delete(serviceId);
+        await fetch('/api/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId })
+        });
+        showToast('Service stopped');
+        fetchStatus();
+      } catch (err) {
+        alert('Failed to stop service: ' + err.message);
+      }
+    }
+
+    async function restartService(serviceId) {
+      try {
+        pendingStarts.add(serviceId);
+        if (lastProjects.length) renderProjects(lastProjects);
+        showToast('Restarting / Relaunching...');
+        await fetch('/api/restart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId })
+        });
+        showToast('Service relaunching, waiting for port...');
+        fetchStatus();
+      } catch (err) {
+        pendingStarts.delete(serviceId);
+        alert('Failed to restart service: ' + err.message);
+      }
+    }
+
+    async function restartAll() {
+      try {
+        for (const p of lastProjects) {
+          for (const s of p.services) pendingStarts.add(s.id);
+        }
+        if (lastProjects.length) renderProjects(lastProjects);
+        showToast('Restarting all configured services...');
+        const res = await fetch('/api/restart-all', { method: 'POST' });
+        const data = await res.json();
+        showToast('Services relaunching, waiting for ports...');
+        fetchStatus();
+      } catch (err) {
+        alert('Failed to restart all: ' + err.message);
+      }
+    }
+
+    async function stopAll() {
+      try {
+        showToast('Stopping all services and ports...');
+        await fetch('/api/stop-all', { method: 'POST' });
+        showToast('All services stopped');
+        fetchStatus();
+      } catch (err) {
+        alert('Failed to stop all: ' + err.message);
+      }
+    }
+
+    async function killPort(port) {
+      try {
+        const res = await fetch('/api/kill-port', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ port })
+        });
+        showToast(`Port ${port} freed`);
+        fetchStatus();
+      } catch (err) {
+        alert('Failed to kill port: ' + err.message);
+      }
+    }
+
+    async function promptChangePort(serviceId, currentPort) {
+      const newPortStr = prompt('Enter new port for this service:', currentPort);
+      if (!newPortStr || newPortStr.trim() === '' || Number(newPortStr) === currentPort) return;
+      const newPort = parseInt(newPortStr.trim(), 10);
+      if (isNaN(newPort) || newPort < 1 || newPort > 65535) {
+        alert('Please enter a valid port number between 1 and 65535.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/update-port', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId, newPort })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          showToast(`Port updated to ${newPort}`);
+          fetchStatus();
+        }
+      } catch (err) {
+        alert('Failed to update port: ' + err.message);
+      }
+    }
+
+    function openLogs(serviceId, serviceName) {
+      currentLogServiceId = serviceId;
+      document.getElementById('modal-service-title').textContent = `Logs: ${serviceName}`;
+      const terminal = document.getElementById('terminal');
+      terminal.innerHTML = '';
+      document.getElementById('log-modal').classList.add('open');
+
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      eventSource = new EventSource(`/api/stream/${serviceId}`);
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const lineEl = document.createElement('span');
+          lineEl.className = 'log-line';
+          if (data.line.includes('[DASHBOARD]')) lineEl.classList.add('system');
+          if (data.line.includes('ERROR') || data.line.includes('Error:')) lineEl.classList.add('error');
+          lineEl.textContent = data.line + '\n';
+          terminal.appendChild(lineEl);
+          terminal.scrollTop = terminal.scrollHeight;
+        } catch (e) {}
+      };
+    }
+
+    function closeLogModal() {
+      document.getElementById('log-modal').classList.remove('open');
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      currentLogServiceId = null;
+    }
+
+    function clearTerminal() {
+      document.getElementById('terminal').innerHTML = '';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function schedulePoll() {
+      const anyStarting = pendingStarts.size > 0 || (document.querySelectorAll('.status-dot.starting').length > 0);
+      setTimeout(async () => {
+        await fetchStatus();
+        schedulePoll();
+      }, anyStarting ? 800 : 2500);
+    }
+
+    fetchStatus();
+    schedulePoll();
+  </script>
+</body>
+</html>
