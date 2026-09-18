@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Local Dev Dashboard</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <style>
     :root {
       --bg: #0d1117;
@@ -13,12 +14,11 @@
       --text-bright: #f0f6fc;
       --muted: #8b949e;
       --primary: #58a6ff;
-      --primary-hover: #79c0ff;
       --success: #2ea043;
       --success-glow: rgba(46, 160, 67, 0.4);
       --danger: #f85149;
-      --danger-hover: #da3633;
       --warning: #d29922;
+      --limited: #ffa657;
       --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     }
 
@@ -38,7 +38,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1280px;
       margin: 0 auto;
     }
 
@@ -57,9 +57,6 @@
       font-size: 24px;
       color: var(--text-bright);
       font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
     }
 
     .title-group p {
@@ -84,124 +81,647 @@
       color: var(--text-bright);
     }
 
-    .projects-grid {
+    .add-hint {
       display: flex;
-      flex-direction: column;
-      gap: 20px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+
+    .add-hint strong {
+      display: block;
+      color: var(--text-bright);
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .add-hint span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      align-items: start;
     }
 
     .project-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 20px;
-      transition: border-color 0.2s;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 100%;
+      transition: border-color 0.2s, opacity 0.15s;
+      cursor: grab;
+    }
+
+    .project-card:active {
+      cursor: grabbing;
+    }
+
+    .project-card.dragging {
+      opacity: 0.45;
+    }
+
+    .project-card.drag-over {
+      border-color: var(--primary);
     }
 
     .project-card:hover {
       border-color: #484f58;
     }
 
+    .project-top {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
     .project-header {
       display: flex;
-      justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 16px;
+      gap: 12px;
+    }
+
+    /* Description and path run the full card width rather than being indented
+       past the avatar. */
+    .project-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .project-header-actions {
+      display: flex;
+      align-items: flex-start;
+      flex-shrink: 0;
+    }
+
+    .btn-settings {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      justify-content: center;
+      color: var(--muted);
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .btn-settings:hover:not(:disabled) {
+      color: var(--text-bright);
+      background: #21262d;
+      border-color: var(--border);
+    }
+
+    .btn-settings svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    .project-avatar,
+    .project-avatar-fallback {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      background: #21262d;
+      border: 1px solid var(--border);
+      object-fit: cover;
+    }
+
+    .project-avatar-fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-bright);
+      letter-spacing: 0.02em;
+    }
+
+    .project-avatar-fallback.emoji {
+      font-size: 22px;
+      font-weight: 400;
+      line-height: 1;
+    }
+
+    .project-heading {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .project-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .project-name {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 600;
       color: var(--text-bright);
+      line-height: 1.25;
     }
 
     .project-desc {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--muted);
-      margin-top: 2px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .project-dir {
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10px;
       color: #6e7681;
       background: #0d1117;
-      padding: 3px 8px;
+      padding: 2px 6px;
       border-radius: 4px;
       border: 1px solid #21262d;
-      margin-top: 6px;
       display: inline-block;
-      word-break: break-all;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    .project-links {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      position: relative;
+      margin-top: 5px;
+    }
+
+    .project-links:empty {
+      display: none;
+    }
+
+    /* Sticky CodeRabbit capacity banner (private vs OSS). */
+    .cr-banner-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      margin: -24px -24px 20px;
+      display: none;
+    }
+
+    .cr-banner-wrap.visible {
+      display: block;
+    }
+
+    .cr-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 24px;
+      background: linear-gradient(90deg, rgba(255, 107, 74, 0.18), rgba(210, 153, 34, 0.12));
+      border-bottom: 1px solid rgba(255, 107, 74, 0.4);
+      color: #ffb198;
+      font-size: 13px;
+    }
+
+    .cr-banner .body { flex: 1; min-width: 0; }
+    .cr-banner strong { color: #ffd6c8; }
+    .cr-banner .pills {
+      display: inline-flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .cr-banner .pills span {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .cr-banner .pills .ok { color: #3fb950; border-color: rgba(46, 160, 67, 0.35); }
+    .cr-banner .pills .bad { color: #ffa657; border-color: rgba(255, 166, 87, 0.4); }
+    .cr-banner button {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: inherit;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      flex: none;
+    }
+
+    /* Unified GitHub chip — carries CodeRabbit review state. */
+    .gh-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .gh {
+      --gh-color: #8b949e;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      border: 1.5px solid color-mix(in srgb, var(--gh-color) 42%, transparent);
+      background: color-mix(in srgb, var(--gh-color) 14%, #21262d);
+      color: color-mix(in srgb, var(--gh-color) 72%, #ffffff);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .gh .badge {
+      padding: 0 5px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--gh-color) 85%, #ffffff);
+      color: #0d1117;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.5;
+      position: relative;
+      z-index: 1;
+    }
+
+    .gh .label { position: relative; z-index: 1; }
+
+    .gh.empty { --gh-color: #8b949e; }
+    .gh.pending {
+      --gh-color: #8b949e;
+      border-style: dashed;
+    }
+    .gh.clear { --gh-color: #3fb950; }
+
+    /* Opaque interior so the conic comet only paints the border ring. */
+    .gh.reviewing {
+      color: #e3b341;
+      border: 1.5px solid transparent;
+      background:
+        linear-gradient(#2a2416, #2a2416) padding-box,
+        linear-gradient(#5a4a22, #5a4a22) border-box;
+    }
+
+    .gh.actionable {
+      --gh-color: #f85149;
+      animation: gh-heartbeat 1.35s ease-in-out infinite;
+    }
+    .gh.actionable .badge { background: #ff7b72; color: #0d1117; }
+
+    .gh.limited {
+      --gh-color: var(--limited);
+      --fill: 0%;
+      color: #ffc48a;
+      border-color: rgba(255, 166, 87, 0.55);
+      overflow: hidden;
+      background:
+        linear-gradient(
+          90deg,
+          rgba(255, 166, 87, 0.38) 0%,
+          rgba(255, 166, 87, 0.38) var(--fill),
+          #21262d var(--fill),
+          #21262d 100%
+        );
+    }
+
+    .gh.ready {
+      --gh-color: var(--limited);
+      color: #ffc48a;
+      border-color: rgba(255, 166, 87, 0.65);
+      background: rgba(255, 166, 87, 0.28);
+      animation: gh-ready-throb 1.4s ease-in-out infinite;
+    }
+
+    @keyframes gh-heartbeat {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+      15% { transform: scale(1.07); box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.25); }
+      30% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+      45% { transform: scale(1.045); box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.16); }
+      60% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+    }
+
+    @keyframes gh-ready-throb {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 166, 87, 0); }
+      50% { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(255, 166, 87, 0.22); }
+    }
+
+    .gh-tip {
+      display: none;
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 8px);
+      z-index: 30;
+      min-width: 0;
+      padding: 7px 10px;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      font-size: 12px;
+      color: #adbac7;
+      line-height: 1.45;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .gh-tip .tip-row {
+      display: block;
+    }
+    .gh-tip .tip-row .k {
+      color: #6e7681;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .gh-tip .tip-row .v { color: #adbac7; }
+    .gh-tip .tip-row.failing .v { color: #ff7b72; }
+    .gh-tip .tip-row.running .v { color: #e3b341; }
+    .gh-tip .tip-row.passing .v { color: #3fb950; }
+    .gh-tip .tip-row.clear .v { color: #3fb950; }
+    .gh-tip .tip-row.actionable .v { color: #ff7b72; }
+    .gh-tip .tip-row.reviewing .v,
+    .gh-tip .tip-row.ready .v,
+    .gh-tip .tip-row.limited .v { color: #e3b341; }
+    .gh-tip .tip-row.pending .v { color: #8b949e; }
+    .gh-wrap:hover .gh-tip { display: block; }
+    .gh-wrap.empty:hover .gh-tip { display: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .gh.actionable,
+      .gh.ready {
+        animation: none;
+      }
+    }
+
+    .git-line {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #6e7681;
+    }
+
+    .git-line .sep { color: #30363d; }
+    .git-branch { color: #58a6ff; }
+    .git-dirty { color: #d29922; }
+    .git-ahead { color: #a371f7; }
+    .git-behind { color: #f85149; }
+
+    .commits {
+      width: 100%;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      background: #0d1117;
+    }
+
+    .commits-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      background: transparent;
+      border: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+      border-radius: 6px;
+    }
+
+    .commits-toggle:hover {
+      background: rgba(88, 166, 255, 0.06);
+    }
+
+    .commits-chevron {
+      color: var(--muted);
+      font-size: 9px;
+      transition: transform 0.15s;
+      flex: none;
+    }
+
+    .commits.open .commits-chevron {
+      transform: rotate(90deg);
+    }
+
+    .commits-summary {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #8b949e;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .commits-summary .count { color: #58a6ff; }
+    .commits-summary .msg { color: #adbac7; }
+
+    .commits-list {
+      display: none;
+      border-top: 1px solid #21262d;
+      padding: 6px 9px 8px;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .commits.open .commits-list {
+      display: flex;
+    }
+
+    .commit-row {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .commit-age { color: #6e7681; }
+    .commit-msg {
+      color: #adbac7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* CI card borders: failing/running use a perimeter comet; passing is a
+       steady green “ready to merge” signal. No open PRs → default border. */
+    .project-card.ci-failing,
+    .project-card.ci-running {
+      border: 1.5px solid transparent;
+      background:
+        linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+        linear-gradient(#30363d, #30363d) border-box;
+    }
+
+    .project-card.ci-passing {
+      border: 1.5px solid rgba(63, 185, 80, 0.65);
+      box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.12);
+    }
+
+    .project-link.more {
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 1px;
+      line-height: 1;
+      padding: 4px 7px;
+    }
+
+    .link-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 40;
+      min-width: 190px;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      display: none;
+    }
+
+    .link-menu.open {
+      display: block;
+    }
+
+    .link-menu-item {
+      --link-color: #8b949e;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      color: color-mix(in srgb, var(--link-color) 70%, #ffffff);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .link-menu-item:hover {
+      background: #30363d;
+    }
+
+    .link-menu-space {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--muted);
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1px 6px;
+    }
+
+    .project-link {
+      --link-color: #8b949e;
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--link-color) 40%, transparent);
+      background: color-mix(in srgb, var(--link-color) 14%, #21262d);
+      color: color-mix(in srgb, var(--link-color) 70%, #ffffff);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+
+    .project-link:hover {
+      border-color: color-mix(in srgb, var(--link-color) 65%, transparent);
+      background: color-mix(in srgb, var(--link-color) 26%, #21262d);
     }
 
     .services-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .service-row {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 8px;
       background: #0d1117;
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 12px 16px;
-      gap: 12px;
+      padding: 10px 12px;
+    }
+
+    .service-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .service-main {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .service-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
-    .service-info {
-      display: flex;
+    .service-name-row {
+      display: inline-flex;
       align-items: center;
-      gap: 12px;
-      flex: 1;
-      min-width: 280px;
-    }
-
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #484f58;
-      flex-shrink: 0;
-    }
-
-    .status-dot.active {
-      background: var(--success);
-      box-shadow: 0 0 8px var(--success-glow);
-    }
-
-    .status-dot.external {
-      background: var(--primary);
-      box-shadow: 0 0 8px rgba(88, 166, 255, 0.4);
-    }
-
-    .status-dot.zombie {
-      background: var(--warning);
-      box-shadow: 0 0 8px rgba(210, 153, 34, 0.4);
+      gap: 6px;
     }
 
     .service-name {
       font-weight: 500;
       color: var(--text-bright);
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .service-cmd {
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10px;
       color: var(--muted);
       background: #161b22;
       padding: 2px 6px;
       border-radius: 3px;
+      display: inline-block;
+      margin-top: 6px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .port-tag {
       font-family: var(--font-mono);
-      font-size: 12px;
-      padding: 3px 8px;
+      font-size: 11px;
+      padding: 2px 7px;
       border-radius: 12px;
       background: #21262d;
       border: 1px solid var(--border);
@@ -209,7 +729,7 @@
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      justify-content: center;
       transition: all 0.2s;
     }
 
@@ -222,47 +742,34 @@
 
     .port-tag.active:hover {
       background: rgba(46, 160, 67, 0.3);
-      text-decoration: underline;
     }
 
-    .status-badge {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #484f58;
+      flex-shrink: 0;
     }
 
-    .status-badge.running {
-      background: rgba(46, 160, 67, 0.2);
-      color: #3fb950;
-      border: 1px solid rgba(46, 160, 67, 0.3);
+    .status-dot.active {
+      background: var(--success);
+      box-shadow: 0 0 6px var(--success-glow);
     }
 
-    .status-badge.external {
-      background: rgba(88, 166, 255, 0.15);
-      color: var(--primary);
-      border: 1px solid rgba(88, 166, 255, 0.3);
+    .status-dot.external {
+      background: var(--primary);
+      box-shadow: 0 0 6px rgba(88, 166, 255, 0.4);
     }
 
-    .status-badge.zombie {
-      background: rgba(210, 153, 34, 0.2);
-      color: var(--warning);
-      border: 1px solid rgba(210, 153, 34, 0.4);
+    .status-dot.zombie {
+      background: var(--warning);
+      box-shadow: 0 0 6px rgba(210, 153, 34, 0.4);
     }
 
-    .status-badge.starting {
-      background: rgba(210, 153, 34, 0.2);
-      color: var(--warning);
-      border: 1px solid rgba(210, 153, 34, 0.4);
-    }
-
-    .status-badge.stopped {
-      background: #21262d;
-      color: var(--muted);
-      border: 1px solid var(--border);
+    .status-dot.starting {
+      background: var(--warning);
+      animation: pulse-yellow 1.4s infinite;
     }
 
     @keyframes pulse-yellow {
@@ -274,11 +781,6 @@
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
-    }
-
-    .status-dot.starting {
-      background: var(--warning);
-      animation: pulse-yellow 1.4s infinite;
     }
 
     .spinner {
@@ -293,7 +795,7 @@
 
     .starting-banner {
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10px;
       color: #e3b341;
       background: rgba(210, 153, 34, 0.1);
       border: 1px solid rgba(210, 153, 34, 0.25);
@@ -303,7 +805,6 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      max-width: 600px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -331,9 +832,9 @@
 
     .actions {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     button {
@@ -371,16 +872,6 @@
       background: #2ea043;
     }
 
-    button.btn-relaunch {
-      background: #1f6feb;
-      border-color: rgba(240, 246, 252, 0.1);
-      color: #fff;
-    }
-
-    button.btn-relaunch:hover:not(:disabled) {
-      background: #388bfd;
-    }
-
     button.btn-danger {
       color: #f85149;
     }
@@ -407,7 +898,229 @@
       color: var(--text-bright);
     }
 
-    /* Logs Modal */
+    button.btn-icon .pencil {
+      display: inline-block;
+      transform: scaleX(-1);
+    }
+
+    .settings-modal {
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 560px;
+      max-height: min(86vh, 760px);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .settings-body {
+      padding: 16px 20px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .settings-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 4px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-row label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .form-row input,
+    .form-row select {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .form-row input:focus,
+    .form-row select:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+
+    .link-edit-row {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+      background: #0d1117;
+    }
+
+    .link-edit-top,
+    .link-edit-bottom {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .link-edit-row input.link-label {
+      width: 118px;
+      flex: none;
+    }
+
+    .link-edit-row input.link-url {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .link-edit-bottom select {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .link-edit-bottom .space-label {
+      font-size: 11px;
+      color: var(--muted);
+      flex: none;
+    }
+
+    .btn-mini {
+      background: #21262d;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 5px 8px;
+      white-space: nowrap;
+    }
+
+    .btn-mini:hover {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+
+    .btn-mini.brand {
+      border-color: color-mix(in srgb, var(--link-color) 40%, transparent);
+      background: color-mix(in srgb, var(--link-color) 14%, #21262d);
+      color: color-mix(in srgb, var(--link-color) 70%, #ffffff);
+    }
+
+    .btn-mini.brand:hover {
+      border-color: color-mix(in srgb, var(--link-color) 65%, transparent);
+      background: color-mix(in srgb, var(--link-color) 26%, #21262d);
+    }
+
+    .btn-mini.pinned {
+      background: rgba(88, 166, 255, 0.15);
+      border-color: rgba(88, 166, 255, 0.5);
+      color: #58a6ff;
+    }
+
+    .btn-mini.danger:hover {
+      background: rgba(248, 81, 73, 0.15);
+      border-color: rgba(248, 81, 73, 0.5);
+      color: #f85149;
+    }
+
+    .link-drag {
+      cursor: grab;
+      color: var(--muted);
+      font-size: 13px;
+      flex: none;
+      padding: 0 2px;
+    }
+
+    .link-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    #link-preset-buttons {
+      display: contents;
+    }
+
+    .link-edit-row.dragging {
+      opacity: 0.5;
+    }
+
+    .avatar-preview-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar-preview-row img,
+    .avatar-preview-row .project-avatar-fallback {
+      width: 40px;
+      height: 40px;
+    }
+
+    .service-settings-card {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      gap: 10px;
+    }
+
+    .settings-hint {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    button.btn-action-icon {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      justify-content: center;
+      color: var(--text-bright);
+    }
+
+    button.btn-action-icon svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    button.btn-action-icon.btn-danger {
+      color: #f85149;
+    }
+
+    button.btn-action-icon.btn-go {
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.4);
+      background: rgba(46, 160, 67, 0.12);
+    }
+
+    button.btn-action-icon.btn-go:hover:not(:disabled) {
+      border-color: rgba(46, 160, 67, 0.7);
+      background: rgba(46, 160, 67, 0.22);
+    }
+
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -498,28 +1211,37 @@
   </style>
 </head>
 <body>
+  <div class="cr-banner-wrap" id="cr-banner-wrap">
+    <div class="cr-banner" id="cr-banner"></div>
+  </div>
   <div class="container">
     <header>
       <div class="title-group">
         <h1>Local Dev Dashboard</h1>
-        <p>Real-time port monitor, zombie process cleaner, and process control</p>
+        <p>Real-time port monitor, zombie process cleaner, and process control · <span style="color:#3fb950">Green</span> = started here · <span style="color:#58a6ff">Blue</span> = already running elsewhere</p>
       </div>
       <div class="header-actions">
         <div id="stats" class="stats-badge">Checking servers...</div>
+        <button onclick="copyAgentPrompt()" title="Copy a prompt you can paste into an agent in any project">Copy agent prompt</button>
         <button class="btn-primary" onclick="restartAll()" title="Relaunch all configured services under dashboard management">Restart All</button>
         <button class="btn-danger" onclick="stopAll()" title="Stop all services and free all ports">Stop All</button>
         <button onclick="fetchStatus()">Refresh</button>
       </div>
     </header>
 
-    <div id="projects-container" class="projects-grid">
-      <!-- Injected by JavaScript -->
+    <div id="add-hint" class="add-hint">
+      <div>
+        <strong>Add a project from Cursor / Antigravity</strong>
+        <span>Paste the agent prompt into a chat in that project (or just ask to “hook this into my dev dashboard”).</span>
+      </div>
+      <button onclick="copyAgentPrompt()">Copy agent prompt</button>
     </div>
+
+    <div id="projects-container" class="projects-grid"></div>
   </div>
 
   <div id="toast" class="toast"></div>
 
-  <!-- Logs Modal -->
   <div id="log-modal" class="modal-backdrop" onclick="closeLogModal(event)">
     <div class="modal" onclick="event.stopPropagation()">
       <div class="modal-header">
@@ -533,11 +1255,154 @@
     </div>
   </div>
 
+  <div id="settings-modal" class="modal-backdrop" onclick="closeSettingsModal(event)">
+    <div class="settings-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div id="settings-modal-title" class="modal-title">Project settings</div>
+        <div class="modal-actions">
+          <button onclick="closeSettingsModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveProjectSettings()">Save</button>
+        </div>
+      </div>
+      <div class="settings-body">
+        <div class="settings-section-title">Project</div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="settings-name">Name</label>
+            <input id="settings-name" type="text" autocomplete="off">
+          </div>
+          <div class="form-row">
+            <label for="settings-description">Description</label>
+            <input id="settings-description" type="text" autocomplete="off">
+          </div>
+          <div class="form-row">
+            <label for="settings-avatar">Avatar URL</label>
+            <div class="avatar-preview-row">
+              <div id="settings-avatar-preview"></div>
+              <input id="settings-avatar" type="url" placeholder="https://… (leave blank for GitHub/auto)" autocomplete="off" style="flex:1" oninput="refreshSettingsAvatarPreview()">
+            </div>
+            <div class="settings-hint">Optional override. Blank uses the GitHub org/user avatar when a repo is set.</div>
+          </div>
+        </div>
+
+        <div class="settings-section-title">Links</div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="settings-arc-space">Default space for this project</label>
+            <select id="settings-arc-space" onchange="refreshLinkSpaceDefaults()"></select>
+            <div class="settings-hint">Links below use this unless they override it. Each Arc space uses its own profile.</div>
+          </div>
+          <div id="settings-links" class="form-grid"></div>
+          <div class="link-presets">
+            <button class="btn-mini" onclick="addLinkRow()">+ Add link</button>
+            <span class="settings-hint" style="margin:0 2px">or:</span>
+            <span id="link-preset-buttons"></span>
+          </div>
+        </div>
+
+        <div class="settings-section-title">Services / ports</div>
+        <div id="settings-services" class="form-grid"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentLogServiceId = null;
     let eventSource = null;
     const pendingStarts = new Set();
     let lastProjects = [];
+    let lastRateLimit = { private: null, oss: null };
+    let crBannerDismissKey = null;
+    let cachedAgentPrompt = null;
+
+    // Icons from Lucide (ISC), kept on a 24 grid at stroke-width 2 so the
+    // stroked glyphs share one visual weight.
+    const ICON_START = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>`;
+    const ICON_LOGS = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></svg>`;
+    const ICON_STOP = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>`;
+    const ICON_RESTART = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>`;
+    const ICON_SETTINGS = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 5.5A2.5 2.5 0 1 1 8 10.5 2.5 2.5 0 0 1 8 5.5zm6.1 2.1-.9-.3a4.8 4.8 0 0 0-.4-1l.6-.8a.5.5 0 0 0-.1-.7l-1.2-1.2a.5.5 0 0 0-.7-.1l-.8.6a4.8 4.8 0 0 0-1-.4l-.3-.9A.5.5 0 0 0 8.8 2H7.2a.5.5 0 0 0-.5.4l-.3.9a4.8 4.8 0 0 0-1 .4l-.8-.6a.5.5 0 0 0-.7.1L2.7 4.4a.5.5 0 0 0-.1.7l.6.8a4.8 4.8 0 0 0-.4 1l-.9.3a.5.5 0 0 0-.4.5v1.6c0 .2.2.5.4.5l.9.3c.1.3.2.7.4 1l-.6.8a.5.5 0 0 0 .1.7l1.2 1.2c.2.2.5.2.7.1l.8-.6c.3.2.7.3 1 .4l.3.9c.1.2.3.4.5.4h1.6c.2 0 .5-.2.5-.4l.3-.9c.3-.1.7-.2 1-.4l.8.6c.2.1.5.1.7-.1l1.2-1.2a.5.5 0 0 0 .1-.7l-.6-.8c.2-.3.3-.7.4-1l.9-.3a.5.5 0 0 0 .4-.5V8.1a.5.5 0 0 0-.4-.5z"/></svg>`;
+    const ORDER_KEY = 'dev-dashboard-project-order';
+    let dragProjectId = null;
+    let settingsProjectId = null;
+
+    function loadProjectOrder() {
+      try {
+        const raw = localStorage.getItem(ORDER_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveProjectOrder(ids) {
+      localStorage.setItem(ORDER_KEY, JSON.stringify(ids));
+    }
+
+    function sortProjectsBySavedOrder(projects) {
+      const order = loadProjectOrder();
+      if (!order.length) return projects.slice();
+      const rank = new Map(order.map((id, i) => [id, i]));
+      return projects.slice().sort((a, b) => {
+        const ai = rank.has(a.id) ? rank.get(a.id) : Number.MAX_SAFE_INTEGER;
+        const bi = rank.has(b.id) ? rank.get(b.id) : Number.MAX_SAFE_INTEGER;
+        if (ai !== bi) return ai - bi;
+        return 0;
+      });
+    }
+
+    function currentVisibleOrder() {
+      return [...document.querySelectorAll('.project-card[data-project-id]')]
+        .map((el) => el.dataset.projectId);
+    }
+
+    function bindCardDragHandlers() {
+      const cards = document.querySelectorAll('.project-card[data-project-id]');
+      for (const card of cards) {
+        card.addEventListener('dragstart', (e) => {
+          if (e.target.closest('a, button, input, textarea')) {
+            e.preventDefault();
+            return;
+          }
+          dragProjectId = card.dataset.projectId;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', dragProjectId);
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          document.querySelectorAll('.project-card.drag-over').forEach((el) => el.classList.remove('drag-over'));
+          dragProjectId = null;
+        });
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (card.dataset.projectId !== dragProjectId) {
+            card.classList.add('drag-over');
+          }
+        });
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over');
+        });
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          const fromId = dragProjectId || e.dataTransfer.getData('text/plain');
+          const toId = card.dataset.projectId;
+          if (!fromId || !toId || fromId === toId) return;
+
+          const order = currentVisibleOrder();
+          const fromIdx = order.indexOf(fromId);
+          const toIdx = order.indexOf(toId);
+          if (fromIdx < 0 || toIdx < 0) return;
+          order.splice(fromIdx, 1);
+          order.splice(toIdx, 0, fromId);
+          saveProjectOrder(order);
+          if (lastProjects.length) renderProjects(lastProjects);
+        });
+      }
+    }
 
     function showToast(msg) {
       const toast = document.getElementById('toast');
@@ -546,33 +1411,126 @@
       setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
+    async function getAgentPrompt() {
+      if (cachedAgentPrompt) return cachedAgentPrompt;
+      const res = await fetch('/api/meta');
+      const data = await res.json();
+      cachedAgentPrompt = data.agentPrompt;
+      return cachedAgentPrompt;
+    }
+
+    async function copyAgentPrompt() {
+      try {
+        const prompt = await getAgentPrompt();
+        await navigator.clipboard.writeText(prompt);
+        showToast('Agent prompt copied — paste it in any project chat');
+      } catch (err) {
+        console.error(err);
+        alert('Could not copy agent prompt: ' + err.message);
+      }
+    }
+
     async function fetchStatus() {
       try {
         const res = await fetch('/api/status');
-        const projects = await res.json();
+        const data = await res.json();
+        const projects = Array.isArray(data) ? data : (data.projects || []);
         lastProjects = projects;
+        lastRateLimit = (data && data.rateLimit) || { private: null, oss: null };
+        renderRateLimitBanner(lastRateLimit);
         renderProjects(projects);
       } catch (err) {
         console.error('Failed to fetch status:', err);
       }
     }
 
+    function projectAvatarHtml(proj) {
+      // A short non-URL avatar is treated as an emoji/text glyph.
+      if (proj.avatar && !/^(https?:|data:|\/)/i.test(proj.avatar)) {
+        return `<div class="project-avatar-fallback emoji">${escapeHtml(proj.avatar)}</div>`;
+      }
+      if (proj.avatar) {
+        return `<img class="project-avatar" src="${escapeHtml(proj.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`;
+      }
+      if (proj.repo) {
+        const match = String(proj.repo).match(/github\.com\/([^/]+)/i);
+        if (match) {
+          const src = `https://github.com/${match[1]}.png?size=80`;
+          return `<img class="project-avatar" src="${escapeHtml(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'project-avatar-fallback',textContent:'${escapeHtml(projectInitials(proj.name))}'}))">`;
+        }
+      }
+      return `<div class="project-avatar-fallback">${escapeHtml(projectInitials(proj.name))}</div>`;
+    }
+
+    function projectInitials(name) {
+      const parts = String(name || '?').trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) return '?';
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+
     function renderProjects(projects) {
       const container = document.getElementById('projects-container');
       let activePortsCount = 0;
       let totalServices = 0;
-
       let html = '';
+      const ordered = sortProjectsBySavedOrder(projects);
 
-      for (const proj of projects) {
-        html += `
+      if (!ordered.length) {
+        html = `
           <div class="project-card">
-            <div class="project-header">
-              <div>
-                <div class="project-name">${escapeHtml(proj.name)}</div>
-                <div class="project-desc">${escapeHtml(proj.description || '')}</div>
-                <div class="project-dir">${escapeHtml(proj.directory)}</div>
+            <div class="project-name">No projects yet</div>
+            <div class="project-desc" style="margin-top: 8px;">
+              Copy the agent prompt, open the project you want to add, and paste it into Cursor or Antigravity.
+            </div>
+            <div style="margin-top: 14px;">
+              <button class="btn-primary" onclick="copyAgentPrompt()">Copy agent prompt</button>
+            </div>
+          </div>
+        `;
+        container.innerHTML = html;
+        document.getElementById('stats').textContent = '0 of 0 ports active';
+        return;
+      }
+
+      // Keep newly seen projects appended in the saved order.
+      const known = new Set(loadProjectOrder());
+      const missing = ordered.map((p) => p.id).filter((id) => !known.has(id));
+      if (missing.length) {
+        saveProjectOrder([...loadProjectOrder(), ...missing]);
+      }
+
+      for (const proj of ordered) {
+        const dirShort = String(proj.directory || '').replace(/^\/Users\/[^/]+/, '~');
+        const ci = proj.ci || null;
+        const ciClass = ci === 'failing' ? ' ci-failing'
+          : ci === 'running' ? ' ci-running'
+          : ci === 'passing' ? ' ci-passing'
+          : '';
+        const ciAttr = ci ? ` data-ci="${escapeHtml(ci)}"` : '';
+        html += `
+          <div class="project-card${ciClass}" draggable="true" data-project-id="${escapeHtml(proj.id)}"${ciAttr}>
+            <div class="project-top">
+              <div class="project-header">
+                ${projectAvatarHtml(proj)}
+                <div class="project-heading">
+                  <div class="project-title-row">
+                    <div class="project-name">${escapeHtml(proj.name)}</div>
+                  </div>
+                  ${projectLinksHtml(proj)}
+                </div>
+                <div class="project-header-actions">
+                  <button class="btn-settings" title="Project settings" onclick="openSettingsModal('${escapeHtml(proj.id)}')">${ICON_SETTINGS}</button>
+                </div>
               </div>
+              ${proj.description || dirShort || proj.git ? `
+                <div class="project-meta">
+                  ${proj.description ? `<div class="project-desc">${escapeHtml(proj.description)}</div>` : ''}
+                  ${dirShort ? `<div class="project-dir" title="${escapeHtml(proj.directory)}">${escapeHtml(dirShort)}</div>` : ''}
+                  ${gitLineHtml(proj.git)}
+                  ${commitsHtml(proj)}
+                </div>
+              ` : ''}
             </div>
             <div class="services-list">
         `;
@@ -580,10 +1538,7 @@
         for (const s of proj.services) {
           totalServices++;
           if (s.isPortOpen) activePortsCount++;
-
-          if (s.isPortOpen) {
-            pendingStarts.delete(s.id);
-          }
+          if (s.isPortOpen) pendingStarts.delete(s.id);
 
           const isStarting = (s.isStarting || pendingStarts.has(s.id)) && !s.isPortOpen;
           const isRunning = s.dashboardRunning && !isStarting;
@@ -592,89 +1547,84 @@
           const health = s.httpHealth;
 
           let dotClass = '';
-          let badgeHtml = '';
-          let healthHtml = '';
           let bannerHtml = '';
 
           if (isStarting) {
             dotClass = 'starting';
-            const pidText = s.pid ? ` (PID ${s.pid})` : '';
-            badgeHtml = `<span class="status-badge starting"><span class="spinner"></span> Starting / Bundling${pidText}...</span>`;
             if (s.lastLog) {
               bannerHtml = `<div class="starting-banner" title="${escapeHtml(s.lastLog)}"><span class="spinner"></span> ${escapeHtml(s.lastLog)}</div>`;
             } else {
-              bannerHtml = `<div class="starting-banner"><span class="spinner"></span> Spawning process, waiting for port :${s.port}...</div>`;
+              bannerHtml = `<div class="starting-banner"><span class="spinner"></span> Waiting for :${s.port}...</div>`;
             }
           } else if (isRunning) {
             dotClass = 'active';
-            badgeHtml = `<span class="status-badge running">Running (PID ${s.pid || ''})</span>`;
           } else if (isExternal) {
             const isUnresponsive = health && !health.responsive;
             dotClass = isUnresponsive ? 'zombie' : 'external';
-            const procLabel = s.externalProcess ? `${s.externalProcess} (PID ${s.pid || '?'})` : `External PID ${s.pid || '?'}`;
-            const memLabel = s.externalMem ? ` • ${s.externalMem}` : '';
-            badgeHtml = `<span class="status-badge ${isUnresponsive ? 'zombie' : 'external'}">${escapeHtml(procLabel + memLabel)}</span>`;
-          } else {
-            badgeHtml = `<span class="status-badge stopped">Stopped</span>`;
           }
 
+          // A healthy response is the expected case, so it stays silent; only
+          // problems earn a pill.
+          let healthHtml = '';
           if (health && !isStarting) {
-            if (health.responsive) {
-              healthHtml = `<span class="health-pill ok" title="HTTP responding">HTTP ${health.status}</span>`;
-            } else {
-              healthHtml = `<span class="health-pill warn" title="Port open but HTTP request timed out (possible zombie process after sleep)">Zombie (${health.status})</span>`;
+            if (!health.responsive) {
+              healthHtml = `<span class="health-pill warn" title="Port open but HTTP timed out">Zombie (${health.status})</span>`;
+            } else if (Number(health.status) >= 400) {
+              healthHtml = `<span class="health-pill warn" title="HTTP error response">HTTP ${health.status}</span>`;
             }
           }
 
           const portLink = s.url || `http://localhost:${s.port}`;
           const cmdText = `${s.command} ${(s.args || []).join(' ')}`;
+          let dotTitle = 'Stopped';
+          if (isStarting) dotTitle = 'Starting…';
+          else if (isRunning) dotTitle = `Running (PID ${s.pid || '?'})`;
+          else if (isExternal) {
+            const procLabel = s.externalProcess ? `${s.externalProcess} (PID ${s.pid || '?'})` : `PID ${s.pid || '?'}`;
+            const memLabel = s.externalMem ? ` · ${s.externalMem}` : '';
+            dotTitle = `External · ${procLabel}${memLabel}`;
+          } else if (isPortOpen) {
+            dotTitle = 'Port listening';
+          }
+
+          const portHtml = s.port ? `
+            <a href="${portLink}" target="_blank" rel="noopener noreferrer" class="port-tag ${isPortOpen ? 'active' : ''}" onclick="openServiceLink(event, '${escapeHtml(proj.id)}', '${portLink}')">:${s.port}</a>
+          ` : '';
+
+          let actionsHtml = '';
+          if (isStarting) {
+            actionsHtml = `<button class="btn-action-icon" disabled><span class="spinner"></span></button>`;
+          } else if (!isRunning && !isExternal) {
+            actionsHtml = `<button class="btn-action-icon btn-go" title="Start" onclick="startService('${s.id}')">${ICON_START}</button>`;
+          } else if (isRunning) {
+            actionsHtml = `
+              <button class="btn-action-icon btn-danger" title="Stop" onclick="stopService('${s.id}')">${ICON_STOP}</button>
+              <button class="btn-action-icon" title="Restart" onclick="restartService('${s.id}')">${ICON_RESTART}</button>
+            `;
+          } else if (isExternal) {
+            actionsHtml = `
+              <button class="btn-action-icon" onclick="restartService('${s.id}')" title="Relaunch — kill external process and take over via dashboard">${ICON_RESTART}</button>
+              <button class="btn-action-icon btn-danger" title="Kill Port" onclick="killPort(${s.port})">${ICON_STOP}</button>
+            `;
+          }
+          actionsHtml += `<button class="btn-action-icon" title="Logs" onclick="openLogs('${s.id}', '${escapeHtml(s.name)}')">${ICON_LOGS}</button>`;
 
           html += `
             <div class="service-row">
-              <div class="service-info">
-                <div class="status-dot ${dotClass}" title="${isStarting ? 'Server starting...' : isPortOpen ? 'Port listening' : 'Port closed'}"></div>
-                <div style="flex: 1; min-width: 0;">
-                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span class="service-name">${escapeHtml(s.name)}</span>
-                    ${badgeHtml}
+              <div class="service-top">
+                <div class="service-main">
+                  <div class="service-meta">
+                    <span class="service-name-row">
+                      <span class="service-name">${escapeHtml(s.name)}</span>
+                      <span class="status-dot ${dotClass}" title="${escapeHtml(dotTitle)}"></span>
+                    </span>
                     ${healthHtml}
+                    ${portHtml}
                   </div>
-                  <span class="service-cmd">${escapeHtml(cmdText)}</span>
+                  <span class="service-cmd" title="${escapeHtml(cmdText)}">${escapeHtml(cmdText)}</span>
                   ${bannerHtml}
                 </div>
-              </div>
-
-              <div style="display: flex; align-items: center; gap: 8px;">
-                ${s.port ? `
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <a href="${portLink}" target="_blank" rel="noopener noreferrer" class="port-tag ${isPortOpen ? 'active' : ''}">
-                      :${s.port} ↗
-                    </a>
-                    <button class="btn-icon" title="Change Port" onclick="promptChangePort('${s.id}', ${s.port})">✏️</button>
-                  </div>
-                ` : ''}
-
-                <div class="actions">
-                  ${isStarting ? `
-                    <button class="btn-primary" disabled><span class="spinner"></span> Starting...</button>
-                  ` : ''}
-
-                  ${!isRunning && !isExternal && !isStarting ? `
-                    <button class="btn-primary" onclick="startService('${s.id}')">Start</button>
-                  ` : ''}
-
-                  ${isRunning ? `
-                    <button class="btn-danger" onclick="stopService('${s.id}')">Stop</button>
-                    <button onclick="restartService('${s.id}')">Restart</button>
-                  ` : ''}
-
-                  ${isExternal ? `
-                    <button class="btn-relaunch" onclick="restartService('${s.id}')" title="Kill external process and take over via dashboard">Relaunch</button>
-                    <button class="btn-danger" onclick="killPort(${s.port})" title="Terminate external process holding this port">Kill Port</button>
-                  ` : ''}
-
-                  <button onclick="openLogs('${s.id}', '${escapeHtml(s.name)}')">Logs</button>
-                </div>
+                <div class="actions">${actionsHtml}</div>
               </div>
             </div>
           `;
@@ -687,7 +1637,232 @@
       }
 
       container.innerHTML = html;
+      bindCardDragHandlers();
       document.getElementById('stats').textContent = `${activePortsCount} of ${totalServices} ports active`;
+      ensureCiCometLoop();
+      ensureReviewCometLoop();
+    }
+
+    function gitLineHtml(git) {
+      if (!git || !git.branch) return '';
+      const parts = [];
+      parts.push(`<span class="git-branch">⎇ ${escapeHtml(git.branch)}</span>`);
+      if (git.dirty > 0) {
+        parts.push(`<span class="git-dirty">${git.dirty} uncommitted</span>`);
+      } else {
+        parts.push(`<span>clean</span>`);
+      }
+      if (git.ahead > 0) {
+        parts.push(`<span class="git-ahead">${git.ahead} unpushed</span>`);
+      }
+      if (git.behind > 0) {
+        parts.push(`<span class="git-behind">${git.behind} behind</span>`);
+      }
+      if (git.lastCommitAge) {
+        parts.push(`<span>${escapeHtml(git.lastCommitAge)}</span>`);
+      }
+      return `<div class="git-line">${parts.join('<span class="sep">·</span>')}</div>`;
+    }
+
+    function commitsHtml(proj) {
+      const commits = proj.git && Array.isArray(proj.git.commits) ? proj.git.commits : [];
+      if (!commits.length) return '';
+      const pid = escapeHtml(proj.id);
+      const newest = commits[0];
+      const isOpen = openCommitsId === proj.id;
+      const rows = commits.map((c) => `
+        <div class="commit-row">
+          <span class="commit-age">${escapeHtml(c.age || '')}</span>
+          <span class="commit-msg" title="${escapeHtml(c.subject || '')}">${escapeHtml(c.subject || '')}</span>
+        </div>`).join('');
+      return `
+        <div class="commits${isOpen ? ' open' : ''}" data-commits-for="${pid}">
+          <button class="commits-toggle" type="button" onclick="toggleCommits('${pid}')">
+            <span class="commits-chevron">▶</span>
+            <span class="commits-summary">
+              <span class="count">${commits.length} commit${commits.length > 1 ? 's' : ''}</span>
+              <span> · </span>
+              <span class="msg">${escapeHtml(newest.subject || '')}</span>
+            </span>
+          </button>
+          <div class="commits-list">${rows}</div>
+        </div>`;
+    }
+
+    function toggleCommits(projectId) {
+      const next = openCommitsId === projectId ? null : projectId;
+      openCommitsId = next;
+      document.querySelectorAll('.commits').forEach((el) => {
+        el.classList.toggle('open', el.dataset.commitsFor === next);
+      });
+    }
+
+    // Soft conic comet for CI-failing cards. Trail length is a fixed fraction of
+    // the perimeter (26%) so it does not pinch mid-top/bottom; lap is 3.5s.
+    const CI_COMET_LAP_MS = 3500;
+    const CI_COMET_TRAIL = 0.26;
+    const CI_COMET_PALETTES = {
+      failing: {
+        head: '#ffc8c3',
+        mid: '#f85149',
+        soft: 'rgba(248,81,73,0.55)',
+        faint: 'rgba(248,81,73,0.22)',
+        base: '#30363d',
+        reduced: 'rgba(248,81,73,0.75)'
+      },
+      running: {
+        head: '#ffe8a3',
+        mid: '#e3b341',
+        soft: 'rgba(227,179,65,0.55)',
+        faint: 'rgba(210,153,34,0.28)',
+        base: '#30363d',
+        reduced: 'rgba(227,179,65,0.75)'
+      }
+    };
+    let ciCometRaf = null;
+    let ciCometT0 = null;
+
+    function pointOnPerimeter(t, w, h) {
+      const hw = w / 2;
+      const hh = h / 2;
+      const perim = 2 * (w + h);
+      let s = ((t % 1) + 1) % 1 * perim;
+      if (s < hw) return { x: s, y: -hh };
+      s -= hw;
+      if (s < h) return { x: hw, y: -hh + s };
+      s -= h;
+      if (s < w) return { x: hw - s, y: hh };
+      s -= w;
+      if (s < h) return { x: -hw, y: hh - s };
+      s -= h;
+      return { x: -hw + s, y: -hh };
+    }
+
+    function angleFromTop(x, y) {
+      let deg = Math.atan2(x, -y) * (180 / Math.PI);
+      if (deg < 0) deg += 360;
+      return deg;
+    }
+
+    function ccwFrom(headDeg, pointDeg) {
+      return (headDeg - pointDeg + 360) % 360;
+    }
+
+    function paintCiComet(card, t) {
+      const kind = card.classList.contains('ci-running') ? 'running' : 'failing';
+      const pal = CI_COMET_PALETTES[kind];
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        card.style.background =
+          'linear-gradient(var(--card-bg), var(--card-bg)) padding-box,' +
+          `linear-gradient(${pal.reduced}, ${pal.reduced}) border-box`;
+        return;
+      }
+      const w = card.offsetWidth;
+      const h = card.offsetHeight;
+      if (w < 2 || h < 2) return;
+
+      const head = pointOnPerimeter(t, w, h);
+      const headDeg = angleFromTop(head.x, head.y);
+      const trailFrac = CI_COMET_TRAIL;
+      const samples = [
+        { d: 0, color: pal.head },
+        { d: trailFrac * 0.08, color: pal.mid },
+        { d: trailFrac * 0.28, color: pal.soft },
+        { d: trailFrac * 0.58, color: pal.faint },
+        { d: trailFrac, color: pal.base }
+      ].map((s) => {
+        const p = pointOnPerimeter(t - s.d, w, h);
+        return { ang: ccwFrom(headDeg, angleFromTop(p.x, p.y)), color: s.color };
+      });
+
+      const stops = [`${pal.base} 0deg`];
+      const farthest = samples[samples.length - 1].ang;
+      stops.push(`${pal.base} ${Math.max(0, 360 - farthest - 0.01)}deg`);
+      for (let i = samples.length - 1; i >= 0; i--) {
+        stops.push(`${samples[i].color} ${360 - samples[i].ang}deg`);
+      }
+
+      card.style.background =
+        `linear-gradient(var(--card-bg), var(--card-bg)) padding-box,` +
+        `conic-gradient(from ${headDeg}deg, ${stops.join(', ')}) border-box`;
+    }
+
+    function ciCometTick(now) {
+      const cards = document.querySelectorAll('.project-card.ci-failing, .project-card.ci-running');
+      if (!cards.length) {
+        ciCometRaf = null;
+        ciCometT0 = null;
+        return;
+      }
+      if (ciCometT0 == null) ciCometT0 = now;
+      const t = ((now - ciCometT0) % CI_COMET_LAP_MS) / CI_COMET_LAP_MS;
+      cards.forEach((card) => paintCiComet(card, t));
+      ciCometRaf = requestAnimationFrame(ciCometTick);
+    }
+
+    function ensureCiCometLoop() {
+      if (ciCometRaf != null) return;
+      if (!document.querySelector('.project-card.ci-failing, .project-card.ci-running')) return;
+      ciCometRaf = requestAnimationFrame(ciCometTick);
+    }
+
+    const CHIP_COMET_LAP_MS = 2000;
+    let chipCometRaf = null;
+    let chipCometT0 = null;
+
+    function paintReviewComet(el, t) {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        el.style.border = '1.5px solid transparent';
+        el.style.background =
+          'linear-gradient(#2a2416, #2a2416) padding-box,' +
+          'linear-gradient(#5a4a22, #5a4a22) border-box';
+        return;
+      }
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (w < 2 || h < 2) return;
+      const trail = 0.14;
+      const head = pointOnPerimeter(t, w, h);
+      const headDeg = angleFromTop(head.x, head.y);
+      const samples = [
+        { d: 0, color: '#ffe8a3' },
+        { d: trail * 0.08, color: '#e3b341' },
+        { d: trail * 0.28, color: 'rgba(227,179,65,0.55)' },
+        { d: trail * 0.58, color: 'rgba(210,153,34,0.28)' },
+        { d: trail, color: 'rgba(210,153,34,0.22)' }
+      ].map((s) => {
+        const p = pointOnPerimeter(t - s.d, w, h);
+        return { ang: ccwFrom(headDeg, angleFromTop(p.x, p.y)), color: s.color };
+      });
+      const stops = ['rgba(210,153,34,0.22) 0deg'];
+      const far = samples[samples.length - 1].ang;
+      stops.push(`rgba(210,153,34,0.22) ${Math.max(0, 360 - far - 0.01)}deg`);
+      for (let i = samples.length - 1; i >= 0; i--) {
+        stops.push(`${samples[i].color} ${360 - samples[i].ang}deg`);
+      }
+      el.style.border = '1.5px solid transparent';
+      el.style.background =
+        `linear-gradient(#2a2416, #2a2416) padding-box,` +
+        `conic-gradient(from ${headDeg}deg, ${stops.join(', ')}) border-box`;
+    }
+
+    function chipCometTick(now) {
+      const chips = document.querySelectorAll('.gh.reviewing');
+      if (!chips.length) {
+        chipCometRaf = null;
+        chipCometT0 = null;
+        return;
+      }
+      if (chipCometT0 == null) chipCometT0 = now;
+      const t = ((now - chipCometT0) % CHIP_COMET_LAP_MS) / CHIP_COMET_LAP_MS;
+      chips.forEach((el) => paintReviewComet(el, t));
+      chipCometRaf = requestAnimationFrame(chipCometTick);
+    }
+
+    function ensureReviewCometLoop() {
+      if (chipCometRaf != null) return;
+      if (!document.querySelector('.gh.reviewing')) return;
+      chipCometRaf = requestAnimationFrame(chipCometTick);
     }
 
     async function startService(serviceId) {
@@ -752,8 +1927,7 @@
         }
         if (lastProjects.length) renderProjects(lastProjects);
         showToast('Restarting all configured services...');
-        const res = await fetch('/api/restart-all', { method: 'POST' });
-        const data = await res.json();
+        await fetch('/api/restart-all', { method: 'POST' });
         showToast('Services relaunching, waiting for ports...');
         fetchStatus();
       } catch (err) {
@@ -774,7 +1948,7 @@
 
     async function killPort(port) {
       try {
-        const res = await fetch('/api/kill-port', {
+        await fetch('/api/kill-port', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ port })
@@ -786,30 +1960,534 @@
       }
     }
 
-    async function promptChangePort(serviceId, currentPort) {
-      const newPortStr = prompt('Enter new port for this service:', currentPort);
-      if (!newPortStr || newPortStr.trim() === '' || Number(newPortStr) === currentPort) return;
-      const newPort = parseInt(newPortStr.trim(), 10);
-      if (isNaN(newPort) || newPort < 1 || newPort > 65535) {
-        alert('Please enter a valid port number between 1 and 65535.');
+    const MAX_PINNED_CHIPS = 3;
+    const SYSTEM_BROWSER = '__system__';
+    let arcSpaces = [];
+    let globalDefaultSpace = 'Me';
+    let openLinkMenuId = null;
+    let openCommitsId = null;
+
+    const LINK_PRESETS = ['Linear', 'Sentry', 'Grafana', 'Braintrust', 'Supabase', 'Vercel', 'Firebase'];
+
+    const LINK_COLORS = {
+      github: '#8b949e',
+      live: '#3fb950',
+      linear: '#5e6ad2',
+      sentry: '#e1567c',
+      grafana: '#f46800',
+      braintrust: '#c084fc',
+      supabase: '#3ecf8e',
+      vercel: '#e6edf3',
+      firebase: '#ffca28',
+      'google cloud': '#4285f4'
+    };
+
+    const LINK_HOSTS = {
+      'github.com': 'GitHub',
+      'linear.app': 'Linear',
+      'sentry.io': 'Sentry',
+      'grafana.net': 'Grafana',
+      'grafana.com': 'Grafana',
+      'braintrust.dev': 'Braintrust',
+      'supabase.com': 'Supabase',
+      'vercel.com': 'Vercel',
+      'console.firebase.google.com': 'Firebase',
+      'console.cloud.google.com': 'Google Cloud'
+    };
+
+    function formatClock(iso) {
+      try {
+        return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      } catch {
+        return '';
+      }
+    }
+
+    function crFillPct(cr) {
+      if (!cr || cr.state !== 'limited' || !cr.limitedSince || !cr.limitedUntil) return null;
+      const a = new Date(cr.limitedSince).getTime();
+      const b = new Date(cr.limitedUntil).getTime();
+      if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 0;
+      return Math.max(0, Math.min(100, ((Date.now() - a) / (b - a)) * 100));
+    }
+
+    function ciTipCopy(ci) {
+      if (ci === 'failing') return { text: 'failing', cls: 'failing' };
+      if (ci === 'running') return { text: 'running', cls: 'running' };
+      if (ci === 'passing') return { text: 'passing', cls: 'passing' };
+      return null;
+    }
+
+    function crStatusLabel(cr) {
+      const state = cr?.state || 'empty';
+      if (state === 'actionable') {
+        const n = Number(cr.actionable) || 0;
+        return n > 0
+          ? `${n} actionable`
+          : 'actionable';
+      }
+      if (state === 'reviewing') return 'reviewing';
+      if (state === 'ready') return 'ready to trigger';
+      if (state === 'limited') return 'rate-limited';
+      if (state === 'clear') return 'good to go';
+      if (state === 'pending') return 'pending';
+      return cr?.tip || null;
+    }
+
+    function githubChipHtml(proj, link, linkIndex) {
+      const cr = proj.cr || { state: 'empty', actionable: 0 };
+      const state = cr.state || 'empty';
+      const actionable = Number(cr.actionable) || 0;
+      const fill = crFillPct(cr);
+      const fillStyle = fill != null ? ` style="--fill:${Math.round(fill)}%"` : '';
+      const badge = state === 'actionable' && actionable > 0
+        ? `<span class="badge">${actionable}</span>`
+        : '';
+      const ciTip = ciTipCopy(proj.ci);
+      const crLabel = state !== 'empty' ? crStatusLabel(cr) : null;
+      const wrapClass = (state === 'empty' && !ciTip) ? 'gh-wrap empty' : 'gh-wrap';
+      const pid = escapeHtml(proj.id);
+      const href = escapeHtml(cr.prUrl || link.url);
+      const label = escapeHtml(link.label || 'GitHub');
+
+      let tip = '';
+      if (crLabel || ciTip) {
+        const rows = [];
+        if (crLabel) {
+          rows.push(
+            `<span class="tip-row ${escapeHtml(state)}"><span class="k">CR:</span> <span class="v">${escapeHtml(crLabel)}</span></span>`
+          );
+        }
+        if (ciTip) {
+          rows.push(
+            `<span class="tip-row ${ciTip.cls}"><span class="k">CI:</span> <span class="v">${escapeHtml(ciTip.text)}</span></span>`
+          );
+        }
+        tip = `<span class="gh-tip">${rows.join('')}</span>`;
+      }
+
+      return `
+        <span class="${wrapClass}">
+          <a class="gh ${escapeHtml(state)}"${fillStyle} href="${href}"
+             target="_blank" rel="noopener noreferrer"
+             onclick="openProjectLink(event, '${pid}', ${linkIndex})">
+            <span class="label">${label}</span>${badge}
+          </a>
+          ${tip}
+        </span>`;
+    }
+
+    function rateLimitBannerKey(rl) {
+      const parts = [];
+      if (rl?.private?.until) parts.push(`p:${rl.private.until}`);
+      if (rl?.oss?.until) parts.push(`o:${rl.oss.until}`);
+      return parts.join('|') || '';
+    }
+
+    function renderRateLimitBanner(rl) {
+      const wrap = document.getElementById('cr-banner-wrap');
+      const el = document.getElementById('cr-banner');
+      if (!wrap || !el) return;
+
+      const priv = rl?.private || null;
+      const oss = rl?.oss || null;
+      if (!priv && !oss) {
+        wrap.classList.remove('visible');
+        el.innerHTML = '';
         return;
       }
 
+      const key = rateLimitBannerKey(rl);
       try {
-        const res = await fetch('/api/update-port', {
+        if (sessionStorage.getItem('cr-banner-dismiss') === key) {
+          wrap.classList.remove('visible');
+          return;
+        }
+      } catch { /* ignore */ }
+
+      const pills = [];
+      if (priv) {
+        pills.push(`<span class="bad">private · limited until ${escapeHtml(formatClock(priv.until))}</span>`);
+      } else {
+        pills.push('<span class="ok">private · ok</span>');
+      }
+      if (oss) {
+        pills.push(`<span class="bad">OSS · limited until ${escapeHtml(formatClock(oss.until))}</span>`);
+      } else {
+        pills.push('<span class="ok">OSS · ok</span>');
+      }
+
+      const both = !!(priv && oss);
+      const title = both
+        ? 'Review capacity uneven across orgs'
+        : priv
+          ? 'Private review capacity limited'
+          : 'OSS review capacity limited';
+
+      el.innerHTML = `
+        <span aria-hidden="true">🐇</span>
+        <div class="body">
+          <strong>${title}</strong>
+          <div class="pills">${pills.join('')}</div>
+        </div>
+        <button type="button" onclick="dismissCrBanner()">Dismiss</button>`;
+      crBannerDismissKey = key;
+      wrap.classList.add('visible');
+    }
+
+    function dismissCrBanner() {
+      const wrap = document.getElementById('cr-banner-wrap');
+      if (wrap) wrap.classList.remove('visible');
+      try {
+        if (crBannerDismissKey) sessionStorage.setItem('cr-banner-dismiss', crBannerDismissKey);
+      } catch { /* ignore */ }
+    }
+
+    function linkColor(label) {
+      return LINK_COLORS[String(label || '').toLowerCase()] || '#58a6ff';
+    }
+
+    function labelFromUrl(url) {
+      try {
+        const host = new URL(url).hostname.replace(/^www\./, '');
+        if (LINK_HOSTS[host]) return LINK_HOSTS[host];
+        for (const [domain, name] of Object.entries(LINK_HOSTS)) {
+          if (host.endsWith('.' + domain)) return name;
+        }
+        const base = host.split('.')[0] || host;
+        return base.charAt(0).toUpperCase() + base.slice(1);
+      } catch {
+        return '';
+      }
+    }
+
+    // link override -> project default -> global default
+    function resolveLinkSpace(project, link) {
+      const space = (link && link.space) || project.defaultArcSpace || globalDefaultSpace || '';
+      return space === SYSTEM_BROWSER ? '' : space;
+    }
+
+    async function loadArcSpaces() {
+      try {
+        const res = await fetch('/api/arc-spaces');
+        const data = await res.json();
+        // Arc reports no spaces when it has no open window; keep the last known
+        // list rather than emptying the dropdowns.
+        if (Array.isArray(data.spaces) && data.spaces.length) arcSpaces = data.spaces;
+        if (data.defaultSpace) globalDefaultSpace = data.defaultSpace;
+      } catch {
+        /* keep cached spaces */
+      }
+    }
+
+    function projectLinksHtml(proj) {
+      const links = Array.isArray(proj.links) ? proj.links : [];
+      if (!links.length && !(proj.repo && /github\.com/i.test(proj.repo))) {
+        return '<div class="project-links"></div>';
+      }
+
+      const pinned = links.filter((l) => l.pinned).slice(0, MAX_PINNED_CHIPS);
+      const rest = links.filter((l) => !pinned.includes(l));
+      const pid = escapeHtml(proj.id);
+      let githubChipUsed = false;
+      let html = '<div class="project-links">';
+
+      for (const link of pinned) {
+        const i = links.indexOf(link);
+        if (/github\.com/i.test(link.url)) {
+          githubChipUsed = true;
+          html += githubChipHtml(proj, link, i);
+          continue;
+        }
+        html += `
+          <a class="project-link" style="--link-color:${linkColor(link.label)}" href="${escapeHtml(link.url)}"
+             target="_blank" rel="noopener noreferrer"
+             title="${escapeHtml(link.url)}" onclick="openProjectLink(event, '${pid}', ${i})">${escapeHtml(link.label)}</a>`;
+      }
+
+      // Surface CR state even when the GitHub link isn't pinned.
+      if (!githubChipUsed && proj.repo && /github\.com/i.test(proj.repo)) {
+        const idx = links.findIndex((l) => /github\.com/i.test(l.url));
+        const fallback = idx >= 0 ? links[idx] : { url: proj.repo, label: 'GitHub' };
+        html += githubChipHtml(proj, fallback, idx);
+      }
+
+      if (rest.length) {
+        html += `<button class="project-link more" title="${rest.length} more link${rest.length > 1 ? 's' : ''}" onclick="toggleLinkMenu(event, '${pid}')">•••</button>`;
+        // Keep an open menu open across the status poll's re-render.
+        html += `<div class="link-menu${openLinkMenuId === proj.id ? ' open' : ''}" id="link-menu-${pid}">`;
+        for (const link of rest) {
+          const i = links.indexOf(link);
+          const space = resolveLinkSpace(proj, link);
+          html += `
+            <a class="link-menu-item" style="--link-color:${linkColor(link.label)}" href="${escapeHtml(link.url)}"
+               target="_blank" rel="noopener noreferrer"
+               title="${escapeHtml(link.url)}" onclick="openProjectLink(event, '${pid}', ${i})">
+              ${escapeHtml(link.label)}
+              ${space ? `<span class="link-menu-space">${escapeHtml(space)}</span>` : ''}
+            </a>`;
+        }
+        html += '</div>';
+      }
+
+      return html + '</div>';
+    }
+
+    function closeLinkMenus(except) {
+      document.querySelectorAll('.link-menu.open').forEach((el) => {
+        if (el !== except) el.classList.remove('open');
+      });
+      if (!except) openLinkMenuId = null;
+    }
+
+    function toggleLinkMenu(event, projectId) {
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = document.getElementById(`link-menu-${projectId}`);
+      if (!menu) return;
+      const willOpen = !menu.classList.contains('open');
+      closeLinkMenus(menu);
+      menu.classList.toggle('open', willOpen);
+      openLinkMenuId = willOpen ? projectId : null;
+    }
+
+    document.addEventListener('click', () => closeLinkMenus());
+
+    // Links open server-side so the tab lands in the configured space's profile
+    // instead of whichever profile happens to be focused.
+    async function openProjectLink(event, projectId, linkIndex) {
+      const project = lastProjects.find((p) => p.id === projectId);
+      if (!project) return;
+      const link = (project.links || [])[linkIndex];
+      const isGithub = link
+        ? /github\.com/i.test(link.url)
+        : !!(project.repo && /github\.com/i.test(project.repo));
+      const crUrl = isGithub && project.cr && project.cr.prUrl;
+      const url = crUrl || (link && link.url) || project.repo;
+      if (!url) return;
+      openInSpace(event, url, resolveLinkSpace(project, link || null));
+    }
+
+    function openServiceLink(event, projectId, url) {
+      const project = lastProjects.find((p) => p.id === projectId);
+      if (!project) return;
+      openInSpace(event, url, resolveLinkSpace(project, null));
+    }
+
+    async function openInSpace(event, url, space) {
+      closeLinkMenus();
+      if (!space) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      try {
+        const res = await fetch('/api/open', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ serviceId, newPort })
+          body: JSON.stringify({ url, space })
+        });
+        const data = await res.json();
+        if (data.error) window.open(url, '_blank', 'noopener');
+      } catch {
+        window.open(url, '_blank', 'noopener');
+      }
+    }
+
+    function spaceOptionsHtml(selected, { includeInherit, inheritLabel } = {}) {
+      const options = [];
+      if (includeInherit) {
+        options.push(`<option value=""${!selected ? ' selected' : ''}>${escapeHtml(inheritLabel)}</option>`);
+      }
+      const known = new Set(arcSpaces);
+      if (selected && selected !== SYSTEM_BROWSER) known.add(selected);
+      for (const space of known) {
+        options.push(`<option value="${escapeHtml(space)}"${space === selected ? ' selected' : ''}>Arc · ${escapeHtml(space)}</option>`);
+      }
+      options.push(`<option value="${SYSTEM_BROWSER}"${selected === SYSTEM_BROWSER ? ' selected' : ''}>System browser</option>`);
+      return options.join('');
+    }
+
+    function projectDefaultSpace() {
+      return document.getElementById('settings-arc-space').value || globalDefaultSpace;
+    }
+
+    function refreshLinkSpaceDefaults() {
+      const label = `Default (${projectDefaultSpace() === SYSTEM_BROWSER ? 'System browser' : projectDefaultSpace()})`;
+      document.querySelectorAll('#settings-links .link-space option[value=""]').forEach((opt) => {
+        opt.textContent = label;
+      });
+    }
+
+    function linkRowHtml(link = {}) {
+      return `
+        <div class="link-edit-row" draggable="false">
+          <div class="link-edit-top">
+            <span class="link-drag" title="Drag to reorder">⠿</span>
+            <input class="link-label" type="text" placeholder="Label" value="${escapeHtml(link.label || '')}" autocomplete="off">
+            <input class="link-url" type="url" placeholder="https://…" value="${escapeHtml(link.url || '')}" autocomplete="off"
+                   oninput="autoFillLinkLabel(this)">
+          </div>
+          <div class="link-edit-bottom">
+            <span class="space-label">Opens in</span>
+            <select class="link-space">${spaceOptionsHtml(link.space || '', { includeInherit: true, inheritLabel: 'Default' })}</select>
+            <button class="btn-mini${link.pinned ? ' pinned' : ''}" onclick="toggleLinkPin(this)" title="Pinned links show as chips on the card">📌 ${link.pinned ? 'Pinned' : 'Pin'}</button>
+            <button class="btn-mini danger" onclick="this.closest('.link-edit-row').remove()" title="Remove link">✕</button>
+          </div>
+        </div>`;
+    }
+
+    function autoFillLinkLabel(urlInput) {
+      const row = urlInput.closest('.link-edit-row');
+      const labelInput = row.querySelector('.link-label');
+      if (labelInput.value.trim() && labelInput.dataset.touched === 'true') return;
+      const guess = labelFromUrl(urlInput.value.trim());
+      if (guess) labelInput.value = guess;
+    }
+
+    function toggleLinkPin(button) {
+      const pinnedNow = button.classList.toggle('pinned');
+      button.textContent = pinnedNow ? '📌 Pinned' : '📌 Pin';
+    }
+
+    function addLinkRow(label = '') {
+      const container = document.getElementById('settings-links');
+      container.insertAdjacentHTML('beforeend', linkRowHtml({ label }));
+      const row = container.lastElementChild;
+      row.querySelector('.link-label').addEventListener('input', (e) => { e.target.dataset.touched = 'true'; });
+      bindLinkRowDrag(row);
+      refreshLinkSpaceDefaults();
+      row.querySelector('.link-url').focus();
+    }
+
+    function renderLinkRows(links) {
+      const container = document.getElementById('settings-links');
+      container.innerHTML = links.map((l) => linkRowHtml(l)).join('');
+      container.querySelectorAll('.link-edit-row').forEach((row) => {
+        row.querySelector('.link-label').dataset.touched = 'true';
+        row.querySelector('.link-label').addEventListener('input', (e) => { e.target.dataset.touched = 'true'; });
+        bindLinkRowDrag(row);
+      });
+
+      document.getElementById('link-preset-buttons').innerHTML = LINK_PRESETS
+        .map((p) => `<button class="btn-mini brand" style="--link-color:${linkColor(p)}" onclick="addLinkRow('${p}')">${p}</button>`)
+        .join(' ');
+      refreshLinkSpaceDefaults();
+    }
+
+    function bindLinkRowDrag(row) {
+      const handle = row.querySelector('.link-drag');
+      handle.addEventListener('mousedown', () => { row.draggable = true; });
+      row.addEventListener('dragstart', (e) => {
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const dragging = document.querySelector('.link-edit-row.dragging');
+        if (!dragging || dragging === row) return;
+        const rect = row.getBoundingClientRect();
+        const after = e.clientY > rect.top + rect.height / 2;
+        row.parentNode.insertBefore(dragging, after ? row.nextSibling : row);
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        row.draggable = false;
+      });
+    }
+
+    function collectLinkRows() {
+      return [...document.querySelectorAll('#settings-links .link-edit-row')].map((row) => ({
+        label: row.querySelector('.link-label').value.trim(),
+        url: row.querySelector('.link-url').value.trim(),
+        space: row.querySelector('.link-space').value,
+        pinned: row.querySelector('.btn-mini').classList.contains('pinned')
+      })).filter((l) => l.url);
+    }
+
+    async function openSettingsModal(projectId) {
+      const project = lastProjects.find((p) => p.id === projectId);
+      if (!project) return;
+      settingsProjectId = projectId;
+      await loadArcSpaces();
+      document.getElementById('settings-modal-title').textContent = `Settings · ${project.name}`;
+      document.getElementById('settings-name').value = project.name || '';
+      document.getElementById('settings-description').value = project.description || '';
+      document.getElementById('settings-avatar').value = project.avatar || '';
+
+      const spaceSelect = document.getElementById('settings-arc-space');
+      spaceSelect.innerHTML = spaceOptionsHtml(project.defaultArcSpace || '', {
+        includeInherit: true,
+        inheritLabel: `Global default (${globalDefaultSpace})`
+      });
+      renderLinkRows(project.links || []);
+
+      const servicesEl = document.getElementById('settings-services');
+      servicesEl.innerHTML = (project.services || []).map((s) => `
+        <div class="service-settings-card" data-service-id="${escapeHtml(s.id)}">
+          <div class="form-row">
+            <label>Service name</label>
+            <input class="settings-service-name" type="text" value="${escapeHtml(s.name || '')}" autocomplete="off">
+          </div>
+          <div class="form-row">
+            <label>Port</label>
+            <input class="settings-service-port" type="number" min="1" max="65535" value="${s.port || ''}" autocomplete="off">
+          </div>
+        </div>
+      `).join('') || `<div class="settings-hint">No services configured.</div>`;
+
+      refreshSettingsAvatarPreview();
+      document.getElementById('settings-modal').classList.add('open');
+    }
+
+    function closeSettingsModal(event) {
+      if (event && event.target !== event.currentTarget && event.type === 'click') return;
+      document.getElementById('settings-modal').classList.remove('open');
+      settingsProjectId = null;
+    }
+
+    function refreshSettingsAvatarPreview() {
+      const project = lastProjects.find((p) => p.id === settingsProjectId) || {};
+      const avatarInput = document.getElementById('settings-avatar').value.trim();
+      const repoLink = collectLinkRows().find((l) => /github\.com/i.test(l.url));
+      const preview = document.getElementById('settings-avatar-preview');
+      preview.innerHTML = projectAvatarHtml({
+        name: document.getElementById('settings-name').value || project.name || '?',
+        avatar: avatarInput || undefined,
+        repo: (repoLink && repoLink.url) || project.repo
+      });
+    }
+
+    async function saveProjectSettings() {
+      if (!settingsProjectId) return;
+      const services = [...document.querySelectorAll('#settings-services .service-settings-card')].map((card) => ({
+        id: card.dataset.serviceId,
+        name: card.querySelector('.settings-service-name')?.value || '',
+        port: card.querySelector('.settings-service-port')?.value || ''
+      }));
+
+      try {
+        const res = await fetch('/api/update-project', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: settingsProjectId,
+            name: document.getElementById('settings-name').value,
+            description: document.getElementById('settings-description').value,
+            avatar: document.getElementById('settings-avatar').value,
+            defaultArcSpace: document.getElementById('settings-arc-space').value,
+            links: collectLinkRows(),
+            services
+          })
         });
         const data = await res.json();
         if (data.error) {
           alert(data.error);
-        } else {
-          showToast(`Port updated to ${newPort}`);
-          fetchStatus();
+          return;
         }
+        showToast('Project settings saved');
+        closeSettingsModal();
+        fetchStatus();
       } catch (err) {
-        alert('Failed to update port: ' + err.message);
+        alert('Failed to save settings: ' + err.message);
       }
     }
 
@@ -820,9 +2498,7 @@
       terminal.innerHTML = '';
       document.getElementById('log-modal').classList.add('open');
 
-      if (eventSource) {
-        eventSource.close();
-      }
+      if (eventSource) eventSource.close();
 
       eventSource = new EventSource(`/api/stream/${serviceId}`);
       eventSource.onmessage = (event) => {
@@ -854,7 +2530,11 @@
 
     function escapeHtml(str) {
       if (!str) return '';
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     function schedulePoll() {
@@ -865,6 +2545,7 @@
       }, anyStarting ? 800 : 2500);
     }
 
+    loadArcSpaces();
     fetchStatus();
     schedulePoll();
   </script>

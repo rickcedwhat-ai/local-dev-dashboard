@@ -1,10 +1,21 @@
 {
+  "defaultArcSpace": "Me",
   "projects": [
     {
       "id": "my-app",
       "name": "My Sample App",
-      "directory": "C:\\projects\\my-app",
+      "directory": "/Users/cedrick/Documents/Projects/my-app",
       "description": "Vite React frontend",
+      "repo": "https://github.com/example/my-app",
+      "liveUrl": "https://my-app.example.com",
+      "avatar": "https://github.com/example.png",
+      "defaultArcSpace": "Work",
+      "links": [
+        { "label": "GitHub", "url": "https://github.com/example/my-app", "pinned": true },
+        { "label": "Live", "url": "https://my-app.example.com", "pinned": true },
+        { "label": "Linear", "url": "https://linear.app/example" },
+        { "label": "Sentry", "url": "https://example.sentry.io/issues/", "space": "Personal" }
+      ],
       "services": [
         {
           "id": "my-app-dev",
