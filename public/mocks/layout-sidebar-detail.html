@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sidebar layout · main pane mock</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --bright: #f0f6fc;
+    --muted: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --orange: #ffa657;
+    --red: #ff7b72;
+    --yellow: #e3b341;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    min-height: 100vh; line-height: 1.45;
+  }
+  .page { max-width: 1280px; margin: 0 auto; padding: 18px 18px 72px; }
+  h1 { font-size: 20px; color: var(--bright); font-weight: 650; }
+  .lede { font-size: 13px; color: var(--muted); margin: 6px 0 14px; max-width: 920px; }
+  .lede code {
+    font-family: var(--mono); font-size: 11px;
+    background: #21262d; padding: 1px 6px; border-radius: 4px; color: #79b8ff;
+  }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center;
+    margin-bottom: 12px; padding: 10px 12px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .toolbar .group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .toolbar label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--muted); margin-right: 2px;
+  }
+  .toolbar button, .chooser button {
+    background: #21262d; border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .toolbar button.active, .chooser button.active {
+    background: rgba(88,166,255,0.15);
+    border-color: rgba(88,166,255,0.45);
+    color: #79b8ff;
+  }
+  .toolbar button.active.ci-pass { background: rgba(63,185,80,0.12); border-color: rgba(63,185,80,0.45); color: var(--green); }
+  .toolbar button.active.ci-run { background: rgba(88,166,255,0.12); border-color: rgba(88,166,255,0.45); color: #79b8ff; }
+  .toolbar button.active.ci-fail { background: rgba(248,81,73,0.12); border-color: rgba(248,81,73,0.45); color: var(--red); }
+  .toolbar .hint { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  .chooser {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center;
+  }
+  .chooser label { font-size: 11px; color: var(--muted); font-weight: 600; margin-right: 2px; }
+  .note {
+    font-size: 12px; color: var(--muted); margin-bottom: 14px;
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); max-width: 980px;
+  }
+  .note strong { color: var(--bright); }
+
+  .shell {
+    display: grid; grid-template-columns: 228px 1fr;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: #010409; overflow: hidden; min-height: 700px;
+  }
+
+  .side {
+    border-right: 1px solid var(--border); background: #0d1117;
+    display: flex; flex-direction: column;
+  }
+  .side-head { padding: 12px 12px 8px; border-bottom: 1px solid var(--border); }
+  .side-head .brand { font-size: 12px; font-weight: 700; color: var(--bright); }
+  .side-head .meta { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+  .side-list { padding: 8px; flex: 1; overflow: auto; }
+  .side-item {
+    width: 100%; text-align: left; background: transparent;
+    border: 1px solid transparent; border-radius: 8px;
+    padding: 9px 9px; cursor: pointer; color: inherit; margin-bottom: 4px;
+  }
+  .side-item:hover { background: #161b22; }
+  .side-item.active {
+    background: rgba(88,166,255,0.1);
+    border-color: rgba(88,166,255,0.4);
+  }
+  .side-item .n { font-size: 12px; font-weight: 650; color: var(--bright); }
+  .side-item .row { display: flex; gap: 5px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #484f58; flex: none; }
+  .dot.on { background: var(--green); }
+  .dot.bad { background: var(--red); }
+  .dot.busy { background: var(--blue); }
+  .dot.yellow { background: var(--yellow); }
+  .pill {
+    font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .pill.prs { color: #79b8ff; border-color: rgba(88,166,255,0.35); }
+  .pill.space { color: #c9d1d9; border-color: #484f58; background: #21262d; font-weight: 600; }
+
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .main-top {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 14px 16px 12px; border-bottom: 1px solid var(--border);
+    background: #0d1117;
+  }
+  .main-top h2 { font-size: 18px; color: var(--bright); font-weight: 650; }
+  .main-top .path { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
+  .main-top .git { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .main-top .git strong { color: var(--bright); }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn {
+    background: #21262d; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .btn.primary { background: #238636; border-color: #238636; color: #fff; }
+  .btn.danger { background: rgba(248,81,73,0.15); border-color: rgba(248,81,73,0.4); color: #ff7b72; }
+
+  .body { padding: 14px 16px 18px; flex: 1; }
+
+  .org-split { display: grid; grid-template-columns: 1.25fr 0.95fr; gap: 12px; align-items: start; }
+  .org-stack { display: flex; flex-direction: column; gap: 12px; }
+  .org-three { display: grid; grid-template-columns: 1.1fr 0.95fr 0.95fr; gap: 12px; align-items: start; }
+  .org-proc-top .procs-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .org-proc-top .below { display: grid; grid-template-columns: 1.2fr 0.9fr; gap: 12px; align-items: start; }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px;
+  }
+  .panel-h {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px; margin-bottom: 10px;
+  }
+  .panel-h h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted); font-weight: 700;
+  }
+  .panel-h .count { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+  /* ===== PR cards (CI comet on the card; CR chip inside) ===== */
+  .pr-list { display: flex; flex-direction: column; gap: 8px; }
+  .pr-card {
+    position: relative;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: #0d1117;
+    transition: border-color 0.12s;
+  }
+  .pr-card:hover { border-color: #484f58; }
+  .pr-card.sel { outline: 1px solid rgba(88,166,255,0.35); outline-offset: 1px; }
+
+  .pr-card.ci-passing {
+    border: 1.5px solid rgba(63, 185, 80, 0.65);
+    box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.12);
+  }
+  .pr-card.ci-failing,
+  .pr-card.ci-running {
+    border: 1.5px solid transparent;
+    background:
+      linear-gradient(#0d1117, #0d1117) padding-box,
+      linear-gradient(#30363d, #30363d) border-box;
+  }
+
+  .pr-top {
+    display: flex; justify-content: space-between; gap: 10px; align-items: flex-start;
+  }
+  .pr-id { font-family: var(--mono); font-size: 12px; color: #79b8ff; font-weight: 650; }
+  .pr-title { font-size: 13px; color: var(--bright); font-weight: 600; margin-top: 2px; line-height: 1.35; }
+  .pr-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .pr-sel-tag {
+    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
+    color: #79b8ff; font-family: var(--mono);
+  }
+
+  /* CR chip — mirrors live .gh */
+  .cr-wrap { position: relative; display: inline-flex; flex: none; }
+  .gh {
+    --gh-color: #8b949e;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1.5px solid color-mix(in srgb, var(--gh-color) 42%, transparent);
+    background: color-mix(in srgb, var(--gh-color) 14%, #21262d);
+    color: color-mix(in srgb, var(--gh-color) 72%, #ffffff);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    cursor: pointer;
+  }
+  .gh .badge {
+    padding: 0 5px; border-radius: 8px;
+    background: color-mix(in srgb, var(--gh-color) 85%, #ffffff);
+    color: #0d1117; font-size: 10px; font-weight: 700; line-height: 1.5;
+    position: relative; z-index: 1;
+  }
+  .gh .label, .gh .chev { position: relative; z-index: 1; }
+  .gh .chev { font-size: 9px; opacity: 0.75; margin-left: 1px; }
+  .gh.empty { --gh-color: #8b949e; }
+  .gh.pending { --gh-color: #8b949e; border-style: dashed; }
+  .gh.clear { --gh-color: #3fb950; }
+  .gh.reviewing {
+    color: #e3b341;
+    border: 1.5px solid transparent;
+    background:
+      linear-gradient(#2a2416, #2a2416) padding-box,
+      linear-gradient(#5a4a22, #5a4a22) border-box;
+  }
+  .gh.actionable, .gh.leftover {
+    --gh-color: #f85149;
+    animation: gh-heartbeat 1.35s ease-in-out infinite;
+  }
+  .gh.actionable .badge, .gh.leftover .badge { background: #ff7b72; color: #0d1117; }
+  .gh.ready {
+    --gh-color: #ffa657;
+    color: #ffc48a;
+    border-color: rgba(255, 166, 87, 0.65);
+    background: rgba(255, 166, 87, 0.28);
+    animation: gh-ready-throb 1.4s ease-in-out infinite;
+  }
+  @keyframes gh-heartbeat {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+    15% { transform: scale(1.07); box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.25); }
+    30% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+    45% { transform: scale(1.045); box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.16); }
+    60% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+  }
+  @keyframes gh-ready-throb {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 166, 87, 0); }
+    50% { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(255, 166, 87, 0.22); }
+  }
+
+  .cr-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 50;
+    min-width: 210px;
+    background: #1c2128;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+    display: none;
+  }
+  .cr-menu.open { display: block; }
+  .cr-menu-hint {
+    padding: 6px 9px 4px; font-size: 10px; color: var(--muted);
+    font-family: var(--mono); text-align: left;
+  }
+  .cr-menu-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+  .cr-menu-item {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    width: 100%; text-align: left; padding: 7px 9px; border-radius: 6px;
+    border: 0; background: transparent; color: var(--text);
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .cr-menu-item:hover { background: #30363d; }
+  .cr-menu-item .title { color: var(--bright); width: 100%; }
+  .cr-menu-item.primary .title { color: #79b8ff; }
+  .cr-menu-item .desc {
+    font-size: 10px; font-weight: 500; color: var(--muted); line-height: 1.35; width: 100%;
+  }
+
+  .proc {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px; padding: 8px 0; border-bottom: 1px solid #21262d;
+  }
+  .proc:last-child { border-bottom: 0; }
+  .proc .name { font-size: 13px; color: var(--bright); font-weight: 600; }
+  .proc .cmd { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .proc .right { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .port {
+    font-family: var(--mono); font-size: 11px; color: #79b8ff;
+    border: 1px solid rgba(88,166,255,0.35); border-radius: 999px; padding: 2px 8px;
+  }
+  .port.on { color: var(--green); border-color: rgba(63,185,80,0.45); background: rgba(63,185,80,0.1); }
+  .proc-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; min-width: 200px; flex: 1;
+  }
+  .proc-chip .name { font-size: 12px; font-weight: 650; color: var(--bright); }
+  .proc-chip .meta { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+  .links {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 8px;
+  }
+  .link-card {
+    display: flex; flex-direction: column; gap: 8px;
+    text-decoration: none; color: inherit;
+    background: #0d1117; border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; min-height: 92px;
+  }
+  .link-card:hover { border-color: #484f58; background: #12181f; }
+  .link-card .top { display: flex; align-items: center; gap: 8px; }
+  .link-card .icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: #0d1117; flex: none;
+  }
+  .link-card .label { font-size: 12px; font-weight: 650; color: var(--bright); }
+  .link-card .hint { font-size: 10px; color: var(--muted); line-height: 1.35; }
+  .link-card .space-row {
+    margin-top: auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  }
+  .link-card .space-row .open { font-size: 10px; color: #6e7681; font-family: var(--mono); }
+
+  .empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
+
+  .legend {
+    margin-top: 14px; max-width: 980px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+  }
+  .legend .box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--muted);
+  }
+  .legend .box strong { display: block; color: var(--bright); margin-bottom: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1>Sidebar + detail · PR cards with live CR/CI</h1>
+    <p class="lede">
+      Each PR is a mini-card: <strong>CI comet/border on the card</strong>, single <strong>🐰 CR chip</strong> (click → menu).
+      Toolbar only mutates the <em>selected</em> PR so you can demo states; others keep theirs.
+    </p>
+
+    <div class="toolbar">
+      <div class="group" id="ci-toggle">
+        <label>CI (selected)</label>
+        <button type="button" data-ci="none">None</button>
+        <button type="button" class="ci-pass" data-ci="passing">Passing</button>
+        <button type="button" class="ci-run" data-ci="running">Running</button>
+        <button type="button" class="ci-fail" data-ci="failing">Failing</button>
+      </div>
+      <div class="group" id="cr-toggle">
+        <label>CR (selected)</label>
+        <button type="button" data-cr="clear">Clear</button>
+        <button type="button" data-cr="pending">Pending</button>
+        <button type="button" data-cr="reviewing">Reviewing</button>
+        <button type="button" data-cr="actionable">Actionable</button>
+        <button type="button" data-cr="leftover">Leftover</button>
+        <button type="button" data-cr="ready">Ready</button>
+      </div>
+      <div class="hint">Click a PR card to select · click 🐰 for actions</div>
+    </div>
+
+    <div class="chooser" id="org-chooser">
+      <label>Main layout</label>
+      <button type="button" class="active" data-org="split">1 · PRs primary + side stack</button>
+      <button type="button" data-org="proc-top">2 · Processes bar on top</button>
+      <button type="button" data-org="three">3 · Three columns</button>
+      <button type="button" data-org="stack">4 · Vertical stack</button>
+    </div>
+    <div class="note" id="org-note"></div>
+
+    <div class="shell" id="shell">
+      <aside class="side">
+        <div class="side-head">
+          <div class="brand">Local Dev</div>
+          <div class="meta">3 / 8 ports up</div>
+        </div>
+        <div class="side-list" id="side-list"></div>
+      </aside>
+      <section class="main">
+        <div class="main-top">
+          <div>
+            <h2 id="proj-name">—</h2>
+            <div class="path" id="proj-path"></div>
+            <div class="git" id="proj-git"></div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn">Settings</button>
+            <button type="button" class="btn">Copy agent prompt</button>
+          </div>
+        </div>
+        <div class="body" id="main-body"></div>
+      </section>
+    </div>
+
+    <div class="legend">
+      <div class="box"><strong>CI on the PR card</strong>Passing = steady green border. Running/failing = perimeter comet (same idea as today’s project cards).</div>
+      <div class="box"><strong>CR chip</strong>One chip per PR — clear / pending / reviewing (gold comet) / actionable·leftover (heartbeat) / ready (throb). Click opens Review / Autofix / still-valid.</div>
+      <div class="box"><strong>Multi-PR at once</strong>No global banner — glance the list. Selected PR gets a blue outline only.</div>
+      <div class="box"><strong>Links</strong>Cards show Arc space. Pins dropped.</div>
+    </div>
+  </div>
+
+<script>
+  const PROJECTS = [
+    {
+      id: 'bp',
+      name: 'BP Order Manager',
+      path: '~/Documents/Projects/BP-Order-Manager',
+      branch: 'cursor/bar-33-compress-resources',
+      dirty: '1 uncommitted',
+      running: true,
+      agent: true,
+      defaultSpace: 'Bari',
+      ports: [
+        { name: 'Dev Server', cmd: 'npm run dev -- --port 6309', port: 6309, on: true },
+        { name: 'Storybook', cmd: 'npm run storybook', port: 6006, on: false }
+      ],
+      prs: [
+        { n: 140, title: 'Compress Resource icons (BAR-33)', cr: 'reviewing', crN: 0, ci: 'running' },
+        { n: 138, title: 'Kitchen display polish', cr: 'actionable', crN: 2, ci: 'passing' },
+        { n: 136, title: 'Contributor onboarding docs', cr: 'pending', crN: 0, ci: 'passing' }
+      ],
+      selectedPr: 140,
+      links: [
+        { label: 'GitHub', hint: 'rickcedwhat / BP-Order-Manager', color: '#f0f6fc', space: 'Bari' },
+        { label: 'Supabase', hint: 'prod project', color: '#3ecf8e', space: 'Bari' },
+        { label: 'Grafana', hint: 'ops dashboards', color: '#f5a623', space: 'Bari' },
+        { label: 'Linear', hint: 'BAR board', color: '#5e6ad2', space: 'Bari' },
+        { label: 'Sentry', hint: 'errors', color: '#f1826a', space: 'Bari' },
+        { label: 'Vercel', hint: 'previews', color: '#ffffff', space: 'Personal' },
+        { label: 'Stripe', hint: 'test mode', color: '#635bff', space: 'Bari' }
+      ]
+    },
+    {
+      id: 'poly',
+      name: 'polyglot-wordle',
+      path: '~/Documents/Projects/polyglot-wordle',
+      branch: 'eval/braintrust-jev-dictionary-qa',
+      dirty: 'clean',
+      running: true,
+      agent: false,
+      defaultSpace: 'Personal',
+      ports: [
+        { name: 'Dev Server', cmd: 'npm run dev -- --port 3333', port: 3333, on: false },
+        { name: 'Storybook', cmd: 'npm run storybook', port: 6006, on: true }
+      ],
+      prs: [
+        { n: 35, title: 'fix: allow inherited challenge solutions', cr: 'leftover', crN: 11, ci: 'passing' },
+        { n: 33, title: 'chore: bump dictionary packs', cr: 'clear', crN: 0, ci: 'passing' }
+      ],
+      selectedPr: 35,
+      links: [
+        { label: 'GitHub', hint: 'repo', color: '#f0f6fc', space: 'Personal' },
+        { label: 'Live', hint: 'Railway', color: '#3fb950', space: 'Personal' },
+        { label: 'Supabase', hint: 'backend', color: '#3ecf8e', space: 'Personal' },
+        { label: 'Braintrust', hint: 'evals', color: '#a78bfa', space: 'Personal' }
+      ]
+    },
+    {
+      id: 'career',
+      name: 'Career Hub',
+      path: '~/Documents/Projects/career-hub',
+      branch: 'main',
+      dirty: '2 uncommitted',
+      running: true,
+      agent: false,
+      defaultSpace: 'Personal',
+      ports: [{ name: 'Career Hub App', cmd: 'npm run dev', port: 5173, on: true }],
+      prs: [{ n: 88, title: 'Master resumes panel', cr: 'clear', crN: 0, ci: 'passing' }],
+      selectedPr: 88,
+      links: [
+        { label: 'GitHub', hint: 'repo', color: '#f0f6fc', space: 'Personal' },
+        { label: 'Live', hint: 'production', color: '#3fb950', space: 'Personal' }
+      ]
+    },
+    {
+      id: 'dash',
+      name: 'Local Dev Dashboard',
+      path: '~/Documents/Projects/local-dev-dashboard',
+      branch: 'main',
+      dirty: '6 uncommitted',
+      running: true,
+      agent: false,
+      defaultSpace: 'Personal',
+      ports: [{ name: 'Dev Server', cmd: 'node server.mjs', port: 4000, on: true }],
+      prs: [],
+      selectedPr: null,
+      links: [
+        { label: 'GitHub', hint: 'repo', color: '#f0f6fc', space: 'Personal' },
+        { label: 'This UI', hint: ':4000', color: '#58a6ff', space: 'Personal' }
+      ]
+    },
+    {
+      id: 'scaf',
+      name: 'Scaffold',
+      path: '~/Documents/Projects/scaffold',
+      branch: 'feat/testing-render-providers',
+      dirty: 'clean',
+      running: false,
+      agent: false,
+      defaultSpace: 'Work',
+      ports: [
+        { name: 'App', cmd: 'npm run dev', port: 8000, on: false },
+        { name: 'API', cmd: 'npm run api', port: 5600, on: false }
+      ],
+      prs: [
+        { n: 27, title: 'Render providers + Playwright', cr: 'actionable', crN: 3, ci: 'failing' },
+        { n: 25, title: 'Docs pass', cr: 'clear', crN: 0, ci: 'passing' }
+      ],
+      selectedPr: 27,
+      links: [
+        { label: 'GitHub', hint: 'repo', color: '#f0f6fc', space: 'Work' },
+        { label: 'Playwright', hint: 'HTML report', color: '#2eac6d', space: 'Work' }
+      ]
+    }
+  ];
+
+  const ORG_NOTES = {
+    split: '<strong>1 · PRs primary + side stack</strong> — PR cards with CI borders + CR chips. Processes + Links on the right.',
+    'proc-top': '<strong>2 · Processes bar on top</strong> — Process chips full width; PRs | Links below.',
+    three: '<strong>3 · Three columns</strong> — PRs · Processes · Links as peers.',
+    stack: '<strong>4 · Vertical stack</strong> — Processes → PRs → Links.'
+  };
+
+  let activeId = 'bp';
+  let org = 'split';
+  let openMenuPr = null;
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+  }
+
+  function selectedPr(p) {
+    if (!p.prs.length) return null;
+    return p.prs.find((pr) => pr.n === p.selectedPr) || p.prs[0];
+  }
+
+  function crChipClass(cr) {
+    if (cr === 'actionable' || cr === 'leftover') return cr;
+    if (cr === 'reviewing') return 'reviewing';
+    if (cr === 'ready') return 'ready';
+    if (cr === 'pending') return 'pending';
+    if (cr === 'clear') return 'clear';
+    return 'empty';
+  }
+
+  function crChipLabel(cr, pr) {
+    if (cr === 'actionable') return { label: 'CR', badge: String(pr.crN || '') };
+    if (cr === 'leftover') return { label: 'CR leftover', badge: String(pr.crN || '') };
+    if (cr === 'reviewing') return { label: 'CR', badge: '…' };
+    if (cr === 'ready') return { label: 'CR ready', badge: '' };
+    if (cr === 'pending') return { label: 'CR', badge: '' };
+    if (cr === 'clear') return { label: 'CR', badge: '✓' };
+    return { label: 'CR', badge: '' };
+  }
+
+  function projectSummary(p) {
+    const rankCr = { leftover: 5, actionable: 4, reviewing: 3, ready: 3, pending: 2, clear: 1 };
+    const rankCi = { failing: 3, running: 2, passing: 1, none: 0 };
+    let bestCr = 'clear'; let bestN = 0; let bestCi = 'none';
+    for (const pr of p.prs) {
+      if ((rankCr[pr.cr] || 0) > (rankCr[bestCr] || 0)) { bestCr = pr.cr; bestN = pr.crN || 0; }
+      if ((rankCi[pr.ci] || 0) > (rankCi[bestCi] || 0)) bestCi = pr.ci;
+    }
+    return { cr: bestCr, crN: bestN, ci: bestCi };
+  }
+
+  function dots(p) {
+    const s = projectSummary(p);
+    let h = `<span class="dot ${p.running ? 'on' : ''}"></span>`;
+    if (p.agent) h += '<span class="dot busy"></span>';
+    if (s.cr === 'actionable' || s.cr === 'leftover') h += '<span class="dot bad"></span>';
+    else if (s.cr === 'reviewing' || s.cr === 'ready') h += '<span class="dot yellow"></span>';
+    if (s.ci === 'failing') h += '<span class="dot bad"></span>';
+    else if (s.ci === 'running') h += '<span class="dot busy"></span>';
+    return h;
+  }
+
+  function crMenuHtml(pr) {
+    const suggested = pr.cr === 'leftover' || pr.cr === 'actionable'
+      ? `<button type="button" class="cr-menu-item primary" data-act="still-valid"><span class="title">Ask if still valid</span><span class="desc">Soft re-check · no @</span></button>
+         <button type="button" class="cr-menu-item" data-act="autofix"><span class="title">Autofix</span><span class="desc">Via dashboard</span></button>`
+      : pr.cr === 'ready' || pr.cr === 'pending' || pr.cr === 'clear'
+        ? `<button type="button" class="cr-menu-item primary" data-act="review"><span class="title">Review</span><span class="desc">@coderabbitai review</span></button>`
+        : `<button type="button" class="cr-menu-item" data-act="review"><span class="title">Review</span><span class="desc">Already in progress</span></button>`;
+    return `<div class="cr-menu" data-menu-for="${pr.n}">
+      <div class="cr-menu-hint">PR #${pr.n}</div>
+      ${suggested}
+      <div class="cr-menu-sep"></div>
+      <button type="button" class="cr-menu-item" data-act="open"><span class="title">Open on GitHub</span><span class="desc">Focus this PR</span></button>
+    </div>`;
+  }
+
+  function panelPrs(p) {
+    if (!p.prs.length) return '<div class="empty">No open PRs.</div>';
+    return `<div class="pr-list">${p.prs.map((pr) => {
+      const sel = pr.n === p.selectedPr;
+      const ciClass = pr.ci === 'failing' ? 'ci-failing'
+        : pr.ci === 'running' ? 'ci-running'
+        : pr.ci === 'passing' ? 'ci-passing' : '';
+      const chip = crChipLabel(pr.cr, pr);
+      const chipCls = crChipClass(pr.cr);
+      const badge = chip.badge ? `<span class="badge">${escapeHtml(chip.badge)}</span>` : '';
+      const sub = pr.ci === 'running' ? 'CI running'
+        : pr.ci === 'failing' ? 'CI failing'
+        : pr.ci === 'passing' ? 'CI passing'
+        : 'No CI signal';
+      return `
+        <div class="pr-card ${ciClass} ${sel ? 'sel' : ''}" data-pr="${pr.n}">
+          <div class="pr-top">
+            <div style="min-width:0">
+              <div class="pr-id">#${pr.n}${sel ? '<span class="pr-sel-tag">selected</span>' : ''}</div>
+              <div class="pr-title">${escapeHtml(pr.title)}</div>
+              <div class="pr-sub">${escapeHtml(sub)}</div>
+            </div>
+            <div class="cr-wrap" data-cr-wrap="${pr.n}">
+              <button type="button" class="gh ${chipCls}" data-cr-btn="${pr.n}" title="CodeRabbit actions">
+                <span class="label">🐰 ${escapeHtml(chip.label)}</span>${badge}<span class="chev">▾</span>
+              </button>
+              ${crMenuHtml(pr)}
+            </div>
+          </div>
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  function panelProcesses(p, compact) {
+    if (!p.ports.length) return '<div class="empty">No processes configured.</div>';
+    if (compact) {
+      return p.ports.map((port) => `
+        <div class="proc-chip">
+          <div style="flex:1;min-width:0">
+            <div class="name">${escapeHtml(port.name)}</div>
+            <div class="meta">:${port.port}</div>
+          </div>
+          <span class="port ${port.on ? 'on' : ''}">${port.on ? 'up' : 'down'}</span>
+          <button type="button" class="btn ${port.on ? 'danger' : 'primary'}">${port.on ? 'Stop' : 'Start'}</button>
+        </div>`).join('');
+    }
+    return p.ports.map((port) => `
+      <div class="proc">
+        <div>
+          <div class="name">${escapeHtml(port.name)}</div>
+          <div class="cmd">${escapeHtml(port.cmd)}</div>
+        </div>
+        <div class="right">
+          <span class="port ${port.on ? 'on' : ''}">:${port.port}</span>
+          <button type="button" class="btn ${port.on ? 'danger' : 'primary'}">${port.on ? 'Stop' : 'Start'}</button>
+          <button type="button" class="btn">Logs</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function panelLinks(p) {
+    if (!p.links.length) return '<div class="empty">No links — add in Settings.</div>';
+    return `<div class="links">${p.links.map((l) => `
+      <a class="link-card" href="#" onclick="return false">
+        <div class="top">
+          <div class="icon" style="background:${l.color}">${escapeHtml(l.label.slice(0, 2).toUpperCase())}</div>
+          <div class="label">${escapeHtml(l.label)}</div>
+        </div>
+        <div class="hint">${escapeHtml(l.hint)}</div>
+        <div class="space-row">
+          <span class="pill space">${escapeHtml(l.space || p.defaultSpace || 'Default')}</span>
+          <span class="open">Arc space</span>
+        </div>
+      </a>`).join('')}</div>`;
+  }
+
+  function section(title, count, inner) {
+    return `<div class="panel"><div class="panel-h"><h3>${title}</h3><span class="count">${count}</span></div>${inner}</div>`;
+  }
+
+  /* ---- CI / review comet (ported from live dashboard, simplified) ---- */
+  const CI_COMET_LAP_MS = 2400;
+  const CHIP_COMET_LAP_MS = 2000;
+  let ciCometRaf = null, ciCometT0 = null;
+  let chipCometRaf = null, chipCometT0 = null;
+
+  function pointOnPerimeter(t, w, h) {
+    const per = 2 * (w + h);
+    let d = ((t % 1) + 1) % 1 * per;
+    if (d < w) return { x: d, y: 0 };
+    d -= w;
+    if (d < h) return { x: w, y: d };
+    d -= h;
+    if (d < w) return { x: w - d, y: h };
+    d -= w;
+    return { x: 0, y: h - d };
+  }
+  function angleFromTop(x, y) {
+    const cx = 0.5, cy = 0.5;
+    let deg = Math.atan2(y - cy, x - cx) * 180 / Math.PI + 90;
+    if (deg < 0) deg += 360;
+    return deg;
+  }
+  function ccwFrom(head, ang) {
+    let d = head - ang;
+    if (d < 0) d += 360;
+    return d;
+  }
+
+  function paintCiComet(card, t) {
+    const failing = card.classList.contains('ci-failing');
+    const pal = failing
+      ? { base: 'rgba(248,81,73,0.35)', head: '#ffb4ae', mid: '#f85149', soft: 'rgba(248,81,73,0.45)' }
+      : { base: 'rgba(88,166,255,0.3)', head: '#b6d4ff', mid: '#58a6ff', soft: 'rgba(88,166,255,0.4)' };
+    const w = card.offsetWidth, h = card.offsetHeight;
+    if (w < 2 || h < 2) return;
+    const trail = 0.16;
+    const head = pointOnPerimeter(t, w, h);
+    const headDeg = angleFromTop(head.x / w, head.y / h);
+    const samples = [
+      { d: 0, color: pal.head },
+      { d: trail * 0.1, color: pal.mid },
+      { d: trail * 0.35, color: pal.soft },
+      { d: trail, color: pal.base }
+    ].map((s) => {
+      const p = pointOnPerimeter(t - s.d, w, h);
+      return { ang: ccwFrom(headDeg, angleFromTop(p.x / w, p.y / h)), color: s.color };
+    });
+    const stops = [`${pal.base} 0deg`];
+    const far = samples[samples.length - 1].ang;
+    stops.push(`${pal.base} ${Math.max(0, 360 - far - 0.01)}deg`);
+    for (let i = samples.length - 1; i >= 0; i--) stops.push(`${samples[i].color} ${360 - samples[i].ang}deg`);
+    card.style.background =
+      `linear-gradient(#0d1117, #0d1117) padding-box, conic-gradient(from ${headDeg}deg, ${stops.join(', ')}) border-box`;
+  }
+
+  function paintReviewComet(el, t) {
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (w < 2 || h < 2) return;
+    const trail = 0.14;
+    const head = pointOnPerimeter(t, w, h);
+    const headDeg = angleFromTop(head.x / w, head.y / h);
+    const samples = [
+      { d: 0, color: '#ffe8a3' },
+      { d: trail * 0.08, color: '#e3b341' },
+      { d: trail * 0.28, color: 'rgba(227,179,65,0.55)' },
+      { d: trail, color: 'rgba(210,153,34,0.22)' }
+    ].map((s) => {
+      const p = pointOnPerimeter(t - s.d, w, h);
+      return { ang: ccwFrom(headDeg, angleFromTop(p.x / w, p.y / h)), color: s.color };
+    });
+    const stops = ['rgba(210,153,34,0.22) 0deg'];
+    const far = samples[samples.length - 1].ang;
+    stops.push(`rgba(210,153,34,0.22) ${Math.max(0, 360 - far - 0.01)}deg`);
+    for (let i = samples.length - 1; i >= 0; i--) stops.push(`${samples[i].color} ${360 - samples[i].ang}deg`);
+    el.style.border = '1.5px solid transparent';
+    el.style.background =
+      `linear-gradient(#2a2416, #2a2416) padding-box, conic-gradient(from ${headDeg}deg, ${stops.join(', ')}) border-box`;
+  }
+
+  function ciCometTick(now) {
+    const cards = document.querySelectorAll('.pr-card.ci-failing, .pr-card.ci-running');
+    if (!cards.length) { ciCometRaf = null; ciCometT0 = null; return; }
+    if (ciCometT0 == null) ciCometT0 = now;
+    const t = ((now - ciCometT0) % CI_COMET_LAP_MS) / CI_COMET_LAP_MS;
+    cards.forEach((c) => paintCiComet(c, t));
+    ciCometRaf = requestAnimationFrame(ciCometTick);
+  }
+  function ensureCiComet() {
+    if (ciCometRaf != null) return;
+    if (!document.querySelector('.pr-card.ci-failing, .pr-card.ci-running')) return;
+    ciCometRaf = requestAnimationFrame(ciCometTick);
+  }
+
+  function chipCometTick(now) {
+    const chips = document.querySelectorAll('.gh.reviewing');
+    if (!chips.length) { chipCometRaf = null; chipCometT0 = null; return; }
+    if (chipCometT0 == null) chipCometT0 = now;
+    const t = ((now - chipCometT0) % CHIP_COMET_LAP_MS) / CHIP_COMET_LAP_MS;
+    chips.forEach((el) => paintReviewComet(el, t));
+    chipCometRaf = requestAnimationFrame(chipCometTick);
+  }
+  function ensureChipComet() {
+    if (chipCometRaf != null) return;
+    if (!document.querySelector('.gh.reviewing')) return;
+    chipCometRaf = requestAnimationFrame(chipCometTick);
+  }
+
+  function renderMain(p) {
+    document.getElementById('proj-name').textContent = p.name;
+    document.getElementById('proj-path').textContent = p.path;
+    document.getElementById('proj-git').innerHTML =
+      `<strong>${escapeHtml(p.branch)}</strong> · ${escapeHtml(p.dirty)}`;
+
+    const prs = section('Open PRs', `${p.prs.length}`, panelPrs(p));
+    const procs = section('Processes', `${p.ports.filter((x) => x.on).length}/${p.ports.length} up`, panelProcesses(p, false));
+    const links = section('Links', `${p.links.length}`, panelLinks(p));
+
+    let html = '';
+    if (org === 'split') html = `<div class="org-split">${prs}<div class="org-stack">${procs}${links}</div></div>`;
+    else if (org === 'proc-top') html = `<div class="org-proc-top"><div class="procs-bar">${panelProcesses(p, true)}</div><div class="below">${prs}${links}</div></div>`;
+    else if (org === 'three') html = `<div class="org-three">${prs}${procs}${links}</div>`;
+    else html = `<div class="org-stack">${procs}${prs}${links}</div>`;
+    document.getElementById('main-body').innerHTML = html;
+
+    if (openMenuPr != null) {
+      const menu = document.querySelector(`.cr-menu[data-menu-for="${openMenuPr}"]`);
+      if (menu) menu.classList.add('open');
+    }
+    ensureCiComet();
+    ensureChipComet();
+  }
+
+  function renderSide() {
+    document.getElementById('side-list').innerHTML = PROJECTS.map((p) => {
+      const s = projectSummary(p);
+      const crTxt = s.cr === 'actionable' || s.cr === 'leftover'
+        ? `${s.crN || ''} ${s.cr}`.trim()
+        : s.cr;
+      return `
+      <button type="button" class="side-item ${p.id === activeId ? 'active' : ''}" data-id="${p.id}">
+        <div class="n">${escapeHtml(p.name)}</div>
+        <div class="row">
+          ${dots(p)}
+          <span class="pill">${escapeHtml(crTxt)}</span>
+          ${p.prs.length > 1 ? `<span class="pill prs">${p.prs.length} PRs</span>` : ''}
+        </div>
+      </button>`;
+    }).join('');
+  }
+
+  function syncToolbar() {
+    const p = PROJECTS.find((x) => x.id === activeId);
+    const pr = p && selectedPr(p);
+    const ci = pr?.ci || 'none';
+    const cr = pr?.cr || 'clear';
+    document.querySelectorAll('#ci-toggle button').forEach((b) => b.classList.toggle('active', b.dataset.ci === ci));
+    document.querySelectorAll('#cr-toggle button').forEach((b) => b.classList.toggle('active', b.dataset.cr === cr));
+  }
+
+  function render() {
+    document.getElementById('org-note').innerHTML = ORG_NOTES[org];
+    renderSide();
+    renderMain(PROJECTS.find((x) => x.id === activeId) || PROJECTS[0]);
+    syncToolbar();
+  }
+
+  document.getElementById('org-chooser').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-org]');
+    if (!btn) return;
+    org = btn.dataset.org;
+    document.querySelectorAll('#org-chooser button').forEach((b) => b.classList.toggle('active', b === btn));
+    openMenuPr = null;
+    render();
+  });
+
+  document.getElementById('ci-toggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-ci]');
+    if (!btn) return;
+    const p = PROJECTS.find((x) => x.id === activeId);
+    const pr = p && selectedPr(p);
+    if (!pr) return;
+    pr.ci = btn.dataset.ci;
+    render();
+  });
+
+  document.getElementById('cr-toggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-cr]');
+    if (!btn) return;
+    const p = PROJECTS.find((x) => x.id === activeId);
+    const pr = p && selectedPr(p);
+    if (!pr) return;
+    pr.cr = btn.dataset.cr;
+    if ((pr.cr === 'actionable' || pr.cr === 'leftover') && !pr.crN) pr.crN = pr.cr === 'leftover' ? 11 : 3;
+    render();
+  });
+
+  document.getElementById('side-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-id]');
+    if (!btn) return;
+    activeId = btn.dataset.id;
+    openMenuPr = null;
+    render();
+  });
+
+  document.getElementById('main-body').addEventListener('click', (e) => {
+    const crBtn = e.target.closest('[data-cr-btn]');
+    if (crBtn) {
+      e.stopPropagation();
+      const n = Number(crBtn.dataset.crBtn);
+      openMenuPr = openMenuPr === n ? null : n;
+      document.querySelectorAll('.cr-menu').forEach((m) => {
+        m.classList.toggle('open', Number(m.dataset.menuFor) === openMenuPr);
+      });
+      return;
+    }
+    const act = e.target.closest('.cr-menu-item[data-act]');
+    if (act) {
+      e.stopPropagation();
+      openMenuPr = null;
+      document.querySelectorAll('.cr-menu').forEach((m) => m.classList.remove('open'));
+      return;
+    }
+    const card = e.target.closest('[data-pr]');
+    if (!card) return;
+    const p = PROJECTS.find((x) => x.id === activeId);
+    if (!p) return;
+    p.selectedPr = Number(card.dataset.pr);
+    openMenuPr = null;
+    render();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-cr-wrap]')) return;
+    openMenuPr = null;
+    document.querySelectorAll('.cr-menu').forEach((m) => m.classList.remove('open'));
+  });
+
+  render();
+</script>
+</body>
+</html>

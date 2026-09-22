@@ -1,5 +1,11 @@
 {
   "defaultArcSpace": "Me",
+  "globalLinks": [
+    { "label": "Gemini usage", "url": "https://aistudio.google.com/usage", "space": "Me" },
+    { "label": "Gemini pricing", "url": "https://ai.google.dev/gemini-api/docs/pricing", "space": "Me" },
+    { "label": "Firebase", "url": "https://console.firebase.google.com/", "space": "Me" },
+    { "label": "GCP billing", "url": "https://console.cloud.google.com/billing", "space": "Me" }
+  ],
   "projects": [
     {
       "id": "my-app",

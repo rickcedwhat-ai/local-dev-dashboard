@@ -4,6 +4,9 @@ import path from 'path';
 import net from 'net';
 import { fileURLToPath } from 'url';
 import { spawn, exec, execSync, execFile } from 'child_process';
+// --- CR Autofix (removable) ---
+import * as crAutofix from './cr-autofix.mjs';
+// --- end CR Autofix ---
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 4000;
@@ -101,6 +104,30 @@ function detectRepoFromDirectory(directory) {
 
 const DEFAULT_MAIN_SPACE = 'Me';
 
+/** Dashboard-wide shortcuts (billing, usage, consoles) — not tied to a project. */
+const DEFAULT_GLOBAL_LINKS = [
+  {
+    label: 'Gemini usage',
+    url: 'https://aistudio.google.com/usage',
+    space: DEFAULT_MAIN_SPACE
+  },
+  {
+    label: 'Gemini pricing',
+    url: 'https://ai.google.dev/gemini-api/docs/pricing',
+    space: DEFAULT_MAIN_SPACE
+  },
+  {
+    label: 'Firebase',
+    url: 'https://console.firebase.google.com/',
+    space: DEFAULT_MAIN_SPACE
+  },
+  {
+    label: 'GCP billing',
+    url: 'https://console.cloud.google.com/billing',
+    space: DEFAULT_MAIN_SPACE
+  }
+];
+
 function sanitizeLink(raw) {
   if (!raw) return null;
   const url = String(raw.url || '').trim();
@@ -175,6 +202,17 @@ function enrichProjectLinks(proj) {
   return JSON.stringify([proj.links, proj.repo, proj.liveUrl, proj.defaultArcSpace]) !== before;
 }
 
+function enrichGlobalLinks() {
+  if (!Array.isArray(config.globalLinks)) {
+    config.globalLinks = DEFAULT_GLOBAL_LINKS.map((l) => ({ ...l }));
+    return true;
+  }
+  const cleaned = config.globalLinks.map(sanitizeLink).filter(Boolean);
+  const before = JSON.stringify(config.globalLinks);
+  config.globalLinks = cleaned;
+  return JSON.stringify(cleaned) !== before;
+}
+
 function loadConfig() {
   try {
     if (!fs.existsSync(CONFIG_PATH) && fs.existsSync(EXAMPLE_CONFIG_PATH)) {
@@ -187,6 +225,7 @@ function loadConfig() {
       config.defaultArcSpace = DEFAULT_MAIN_SPACE;
       configChanged = true;
     }
+    if (enrichGlobalLinks()) configChanged = true;
     for (const proj of config.projects) {
       if (enrichProjectLinks(proj)) configChanged = true;
       for (const s of proj.services) {
@@ -409,21 +448,35 @@ async function updatePortStatuses() {
 setInterval(updatePortStatuses, 2500);
 updatePortStatuses();
 
-// GitHub insights (open PRs, CI fail, CodeRabbit chip state) from one bulk
-// GraphQL query on a slow timer. Auth is the gh CLI keyring.
-const GH_REFRESH_MS = 20000;
-const GH_REFRESH_BACKOFF_MS = 60000;
+// GitHub insights: staggered REST is the durable path (open PRs + CI).
+// One repo per tick ≈ 30s full cycle across ~7 projects — feels live without
+ // bursting. GraphQL is optional CR enrichment and backs off hard when throttled.
+const GH_STAGGER_MS = 4000;
+const GH_REST_BACKOFF_MS = 120000;
+const GH_GRAPHQL_BACKOFF_MS = 300000;
 const openPrCounts = new Map();
 const ciStateBySlug = new Map(); // slug -> 'failing' | 'running' | 'passing'
 const crBySlug = new Map(); // slug -> { state, actionable, openPrs, isPrivate, tip, limitedUntil, limitedSince, prUrl, prNumber }
+/** Per open PR for the sidebar detail UI: [{ number, title, url, ci, cr }] */
+const prsBySlug = new Map();
 const rateLimitMemory = new Map(); // slug -> { until, since, isPrivate, prUrl }
 let rateLimitBanner = { private: null, oss: null }; // { until, since } | null
 let ghUnavailable = false;
 let ghRefreshInFlight = false;
-let ghNextRefreshAt = 0;
+let ghRestNextAt = 0;
+let ghGraphqlNextAt = 0;
+let ghStaggerIndex = 0;
+/** Cached `gh api user` login — used by the UI to scope notifications to “my” PRs. */
+let githubLogin = null;
+let githubLoginFetchedAt = 0;
 
 const CR_AUTHOR = /^coderabbitai(\[bot\])?$/i;
 const STATE_RANK = {
+  // --- CR Autofix (removable): autofixing / delivery / leftover ---
+  autofixing: 7,
+  delivery: 7,
+  leftover: 6,
+  // --- end CR Autofix ---
   actionable: 6,
   reviewing: 5,
   ready: 4,
@@ -436,6 +489,116 @@ const STATE_RANK = {
 // Local git snapshot (branch / dirty / ahead / recent commits) per project.
 const GIT_REFRESH_MS = 5000;
 const gitStateByProject = new Map();
+
+// Agent activity (LLM start/finish on a project/PR) + protocol handshake.
+const AGENT_PROTOCOL_VERSION = 2;
+const AGENT_IDLE_MS = 45 * 60 * 1000;
+const agentActivityByProject = new Map(); // projectId -> session
+
+function readAgentInstructions() {
+  try {
+    return fs.readFileSync(path.join(__dirname, 'AGENT_INSTRUCTIONS.md'), 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function protocolPayload(clientProtocol) {
+  const current = AGENT_PROTOCOL_VERSION;
+  const client = Number(clientProtocol);
+  const stale = !Number.isFinite(client) || client < current;
+  const protocolUrl = 'http://localhost:4000/api/agent-protocol';
+  const payload = {
+    protocol: current,
+    stale,
+    protocolUrl
+  };
+  if (stale) {
+    payload.message = `Dashboard protocol is v${current}; client sent ${clientProtocol ?? 'none'}. GET ${protocolUrl}, save instructions to AGENTS.md, then retry with "protocol": ${current}.`;
+  }
+  return payload;
+}
+
+function resolveProjectForAgent(body = {}) {
+  const { projectId, directory, repo, name } = body;
+  if (projectId) {
+    const byId = config.projects.find((p) => p.id === projectId);
+    if (byId) return byId;
+  }
+  if (directory) {
+    const dir = path.resolve(String(directory));
+    const byDir = config.projects.find((p) => path.resolve(p.directory || '') === dir);
+    if (byDir) return byDir;
+  }
+  if (repo) {
+    const slug = parseRepoSlug(normalizeRepoUrl(repo) || repo);
+    if (slug) {
+      const byRepo = config.projects.find((p) => {
+        const s = parseRepoSlug(p.repo);
+        return s && s.slug === slug.slug;
+      });
+      if (byRepo) return byRepo;
+    }
+  }
+  if (name) {
+    const needle = String(name).toLowerCase();
+    const byName = config.projects.find((p) =>
+      p.name?.toLowerCase() === needle || p.id === needle
+    );
+    if (byName) return byName;
+  }
+  return null;
+}
+
+function getAgentActivity(projectId) {
+  const activity = agentActivityByProject.get(projectId);
+  if (!activity) return null;
+  if (activity.phase === 'start' && Date.now() - activity.updatedAt > AGENT_IDLE_MS) {
+    agentActivityByProject.delete(projectId);
+    return null;
+  }
+  if (activity.phase !== 'start') return null;
+  return {
+    working: true,
+    summary: activity.summary || null,
+    pr: activity.pr || null,
+    agent: activity.agent || null,
+    startedAt: new Date(activity.startedAt).toISOString(),
+    updatedAt: new Date(activity.updatedAt).toISOString()
+  };
+}
+
+function setAgentActivity(projectId, body) {
+  const phase = String(body.phase || '').toLowerCase();
+  if (phase !== 'start' && phase !== 'finish') {
+    throw new Error('phase must be "start" or "finish"');
+  }
+  const now = Date.now();
+  if (phase === 'finish') {
+    agentActivityByProject.delete(projectId);
+    return { working: false };
+  }
+  const prev = agentActivityByProject.get(projectId);
+  agentActivityByProject.set(projectId, {
+    phase: 'start',
+    summary: body.summary ? String(body.summary).slice(0, 200) : (prev?.summary || null),
+    pr: body.pr != null ? (Number(body.pr) || String(body.pr)) : (prev?.pr || null),
+    agent: body.agent ? String(body.agent).slice(0, 80) : (prev?.agent || null),
+    startedAt: prev?.phase === 'start' ? prev.startedAt : now,
+    updatedAt: now,
+    protocol: Number(body.protocol) || AGENT_PROTOCOL_VERSION
+  });
+  return getAgentActivity(projectId);
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, activity] of agentActivityByProject) {
+    if (activity.phase === 'start' && now - activity.updatedAt > AGENT_IDLE_MS) {
+      agentActivityByProject.delete(id);
+    }
+  }
+}, 60000);
 
 function parseRepoSlug(repoUrl) {
   const match = /github\.com\/([^/]+)\/([^/#?]+)/i.exec(String(repoUrl || ''));
@@ -451,20 +614,73 @@ function isCrAuthor(login) {
   return CR_AUTHOR.test(String(login || ''));
 }
 
-function parseRateLimitWindow(text, createdAt) {
+/** CR sometimes finishes with 0 findings only in the evergreen summarize comment
+ *  (no Pull Request Review, no reviewThreads). Treat that as clear. */
+function crFinishedClearFromText(body) {
+  const text = String(body || '');
+  if (/No actionable comments were generated in the recent review/i.test(text)) return true;
+  const m = text.match(/Actionable comments posted:\s*(\d+)/i);
+  return !!(m && parseInt(m[1], 10) === 0);
+}
+
+function isRateLimitSignal(text) {
   const body = String(text || '');
-  if (!/rate\s*limit/i.test(body) && !/reviews?\s+remaining/i.test(body) && !/try\s+again/i.test(body)) {
-    return null;
+  // Do NOT treat CodeRabbit's success footer
+  // "…up to N included reviews per hour; 0 remain after this review" as a block —
+  // that is quota accounting after a completed review, not an active rate limit.
+  return /rate\s*limit/i.test(body)
+    || /review\s+limit\s+reached/i.test(body)
+    || /next\s+included\s+review\s+available/i.test(body)
+    || /(?:no|out\s+of)\s+free\s+(?:OSS\s+)?reviews?/i.test(body)
+    || /free\s+(?:OSS\s+)?reviews?\s+for\s+now/i.test(body)
+    || /(?:available|ready|resets?|try\s+again)\s+in\s+\d+\s*(?:minutes?|mins?|hours?|hrs?)/i.test(body)
+    // "0 reviews remaining" (blocked) — not "0 remain after this review" (success footer).
+    || /(?:^|[^\d])0\s+reviews?\s+remaining\b/i.test(body);
+}
+
+/** Prefer explicit relative countdowns over clock times over +1h fallback. */
+function pickBestRateWindow(candidates) {
+  const rank = { relative: 3, clock: 2, hourly: 1, fallback: 0 };
+  let best = null;
+  for (const w of candidates) {
+    if (!w?.until) continue;
+    if (!best) {
+      best = w;
+      continue;
+    }
+    const ra = rank[w.quality] ?? 0;
+    const rb = rank[best.quality] ?? 0;
+    if (ra > rb) {
+      best = w;
+      continue;
+    }
+    if (ra === rb && new Date(w.until).getTime() < new Date(best.until).getTime()) {
+      // Same quality: earlier unlock is usually the fresher countdown.
+      best = w;
+    }
   }
-  const since = createdAt ? new Date(createdAt) : new Date();
+  return best;
+}
+
+function parseRateLimitWindow(text, at) {
+  const body = String(text || '');
+  if (!isRateLimitSignal(body)) return null;
+  const since = at ? new Date(at) : new Date();
   if (Number.isNaN(since.getTime())) return null;
 
-  const inMins = body.match(/in\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)/i);
-  if (inMins) {
-    const n = parseInt(inMins[1], 10);
-    const unit = inMins[2].toLowerCase();
+  // Prefer "available in 49 minutes" (CodeRabbit summarize edit) over a bare "in N …".
+  const availableIn = body.match(
+    /(?:available|ready|resets?|try\s+again)\s+in\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)/i
+  ) || body.match(/\bin\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)\b/i);
+  if (availableIn) {
+    const n = parseInt(availableIn[1], 10);
+    const unit = availableIn[2].toLowerCase();
     const ms = /hour|hr/.test(unit) ? n * 3600000 : n * 60000;
-    return { since: since.toISOString(), until: new Date(since.getTime() + ms).toISOString() };
+    return {
+      quality: 'relative',
+      since: since.toISOString(),
+      until: new Date(since.getTime() + ms).toISOString()
+    };
   }
 
   const untilAt = body.match(/(?:until|again\s+at|available\s+at|after)\s+(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
@@ -473,17 +689,48 @@ function parseRateLimitWindow(text, createdAt) {
     if (until) {
       const start = new Date(until.getTime() - 3600000);
       return {
+        quality: 'clock',
         since: (start > since ? since : start).toISOString(),
         until: until.toISOString()
       };
     }
   }
 
-  // Known CodeRabbit behavior: rolling ~1h window when limited.
+  // "up to 1 included review per hour; 0 remain" — only when not the success
+  // footer ("0 remain after this review"), which is quota accounting.
+  const perHour = body.match(
+    /up\s+to\s+(\d+)\s+included\s+reviews?\s+per\s+hour[^;]*;\s*0\s+remain(?!\s+after\s+this\s+review)/i
+  );
+  if (perHour) {
+    const n = Math.max(1, parseInt(perHour[1], 10) || 1);
+    return {
+      quality: 'hourly',
+      since: since.toISOString(),
+      until: new Date(since.getTime() + n * 3600000).toISOString()
+    };
+  }
+
+  // Last resort: rolling ~1h window from this signal (often a short "rate limited" reply).
   return {
+    quality: 'fallback',
     since: since.toISOString(),
     until: new Date(since.getTime() + 3600000).toISOString()
   };
+}
+
+function collectRateLimitWindows({ comments = [], reviews = [] }) {
+  const candidates = [];
+  for (const c of comments) {
+    const at = c.updatedAt || c.updated_at || c.createdAt || c.created_at;
+    const w = parseRateLimitWindow(c.body, at);
+    if (w) candidates.push(w);
+  }
+  for (const r of reviews) {
+    const at = r.submittedAt || r.submitted_at;
+    const w = parseRateLimitWindow(r.body, at);
+    if (w) candidates.push(w);
+  }
+  return pickBestRateWindow(candidates);
 }
 
 function parseLooseTimeOnDay(raw, relativeTo) {
@@ -498,6 +745,110 @@ function parseLooseTimeOnDay(raw, relativeTo) {
   d.setHours(hour, minute, 0, 0);
   if (d.getTime() < relativeTo.getTime() - 60000) d.setDate(d.getDate() + 1);
   return d;
+}
+
+function isCrAppLabel(value) {
+  return /coderabbit/i.test(String(value || ''));
+}
+
+/**
+ * Live "Review in progress" signal matching the GitHub Checks UI.
+ * Prefer commit status context ("CodeRabbit" / pending) over bare queued suites
+ * (those can linger after the review finishes).
+ */
+function crLiveReviewing({
+  suites = [],
+  checkRuns = [],
+  statuses = [],
+  comments = [],
+  reviews = []
+} = {}) {
+  const now = Date.now();
+
+  let crStatusCompleted = false;
+  for (const s of statuses) {
+    const ctx = s.context || '';
+    if (!isCrAppLabel(ctx)) continue;
+    const state = String(s.state || '').toLowerCase();
+    const desc = String(s.description || '');
+    // Terminal CodeRabbit statuses (completed, skipped, failed, …) — never
+    // “reviewing”, even if a queued check-suite shell is still hanging around.
+    if (state === 'success' || state === 'failure' || state === 'error') {
+      crStatusCompleted = true;
+      continue;
+    }
+    if (state === 'pending' || state === 'expected') {
+      // Pending with an explicit skip/complete message is still odd; prefer text.
+      if (/skipped|manual review required|completed|finished/i.test(desc)) {
+        crStatusCompleted = true;
+        continue;
+      }
+      return true;
+    }
+    if (/review in progress|waiting for status|generating review/i.test(desc)) return true;
+  }
+
+  for (const run of checkRuns) {
+    const label = `${run.app?.slug || ''} ${run.app?.name || ''} ${run.name || ''} ${run.title || ''} ${run.output?.title || ''}`;
+    if (!isCrAppLabel(label) && !/review in progress/i.test(label)) continue;
+    const st = String(run.status || '').toUpperCase();
+    if (st === 'IN_PROGRESS' || st === 'QUEUED' || st === 'WAITING' || st === 'PENDING' || st === 'REQUESTED') {
+      return true;
+    }
+    if (/review in progress|waiting for status/i.test(label)) return true;
+  }
+
+  for (const suite of suites) {
+    const app = suite.app?.slug || suite.app?.name || '';
+    if (!isCrAppLabel(app)) continue;
+    const st = String(suite.status || '').toUpperCase().replace(/-/g, '_');
+    if (st === 'IN_PROGRESS') return true;
+
+    // QUEUED alone is weak (shells linger). Use it only while fresh and when
+    // CodeRabbit has not already posted a completed status context.
+    if (!crStatusCompleted && !suite.conclusion && (st === 'QUEUED' || st === 'REQUESTED' || st === 'WAITING' || st === 'PENDING')) {
+      const updated = new Date(
+        suite.updated_at || suite.updatedAt || suite.created_at || suite.createdAt || 0
+      ).getTime();
+      if (updated && now - updated < 45 * 60 * 1000) return true;
+    }
+
+    for (const run of suite.checkRuns?.nodes || suite.check_runs || []) {
+      const rst = String(run.status || '').toUpperCase();
+      const title = `${run.name || ''} ${run.title || ''}`;
+      if (rst === 'IN_PROGRESS' || rst === 'QUEUED' || rst === 'WAITING' || rst === 'PENDING') return true;
+      if (/review in progress|waiting for status/i.test(title)) return true;
+    }
+  }
+
+  // Explicit in-progress issue comments (ignore evergreen summarize widgets).
+  for (const c of comments) {
+    const body = c.body || '';
+    if (!/review in progress by coderabbit/i.test(body)) continue;
+    if (/summarize by coderabbit\.ai/i.test(body)) continue;
+    const at = new Date(c.updatedAt || c.updated_at || c.createdAt || c.created_at || 0).getTime();
+    const reviewAfter = reviews.some((r) => {
+      const submitted = new Date(r.submittedAt || r.submitted_at || 0).getTime();
+      return submitted >= at - 2000;
+    });
+    if (!reviewAfter) return true;
+  }
+
+  return false;
+}
+
+function reviewingCrResult(prUrl, prNumber, isPrivate) {
+  return {
+    state: 'reviewing',
+    actionable: 0,
+    tip: 'CodeRabbit review in progress',
+    detail: 'Results will land on the PR shortly',
+    limitedUntil: null,
+    limitedSince: null,
+    isPrivate,
+    prUrl,
+    prNumber
+  };
 }
 
 function classifyPullRequestCr(pr, isPrivate) {
@@ -516,25 +867,27 @@ function classifyPullRequestCr(pr, isPrivate) {
   const newestReview = reviews.length ? reviews[reviews.length - 1] : null;
   const newestComment = comments.length ? comments[comments.length - 1] : null;
 
-  // Rate limit: check runs + CR comments/reviews
-  const checkSuites = pr.commits?.nodes?.[0]?.commit?.checkSuites?.nodes || [];
-  let rateWindow = null;
+  const commit = pr.commits?.nodes?.[0]?.commit;
+  const checkSuites = commit?.checkSuites?.nodes || [];
+  const statuses = commit?.status?.contexts || [];
+
+  // Rate limit: check runs + CR comments/reviews (prefer explicit countdowns).
+  let rateWindow = collectRateLimitWindows({ comments, reviews });
   for (const suite of checkSuites) {
     for (const run of suite.checkRuns?.nodes || []) {
       const label = `${run.name || ''} ${run.title || ''}`;
       if (/rate\s*limit/i.test(label)) {
-        rateWindow = parseRateLimitWindow(label, new Date().toISOString())
-          || { since: new Date(Date.now() - 3600000).toISOString(), until: new Date(Date.now() + 900000).toISOString() };
+        rateWindow = pickBestRateWindow([
+          rateWindow,
+          parseRateLimitWindow(label, new Date().toISOString())
+            || {
+              quality: 'fallback',
+              since: new Date(Date.now() - 3600000).toISOString(),
+              until: new Date(Date.now() + 900000).toISOString()
+            }
+        ].filter(Boolean));
       }
     }
-  }
-  for (const c of [...comments].reverse()) {
-    const w = parseRateLimitWindow(c.body, c.createdAt);
-    if (w) { rateWindow = w; break; }
-  }
-  for (const r of [...reviews].reverse()) {
-    const w = parseRateLimitWindow(r.body, r.submittedAt);
-    if (w) { rateWindow = w; break; }
   }
 
   const now = Date.now();
@@ -548,11 +901,17 @@ function classifyPullRequestCr(pr, isPrivate) {
         detail: `Capacity returns at ${formatClock(rateWindow.until)}`,
         limitedUntil: rateWindow.until,
         limitedSince: rateWindow.since,
+        limitQuality: rateWindow.quality || 'fallback',
         isPrivate,
         prUrl: pr.url,
         prNumber: pr.number
       };
     }
+  }
+
+  // Live check/status beats stale clear/actionable from an earlier review cycle.
+  if (crLiveReviewing({ suites: checkSuites, statuses, comments, reviews })) {
+    return reviewingCrResult(pr.url, pr.number, isPrivate);
   }
 
   if (actionable > 0) {
@@ -569,41 +928,15 @@ function classifyPullRequestCr(pr, isPrivate) {
     };
   }
 
-  // In-progress: recent CR activity without a finished review summary, or
-  // check run still queued/in progress.
-  let reviewing = false;
-  for (const suite of checkSuites) {
-    if (!/coderabbit/i.test(suite.app?.name || '')) continue;
-    for (const run of suite.checkRuns?.nodes || []) {
-      if (run.status === 'IN_PROGRESS' || run.status === 'QUEUED' || run.status === 'PENDING') {
-        reviewing = true;
-      }
-    }
-  }
-  const recentCr = newestComment || newestReview;
-  if (recentCr) {
-    const body = newestComment?.body || newestReview?.body || '';
-    const at = new Date(newestComment?.createdAt || newestReview?.submittedAt || 0).getTime();
-    const age = now - at;
-    if (/review command invocation|review_stack|summarize by coderabbit|generating|in progress|on it/i.test(body)
-      && age < 15 * 60 * 1000
-      && !/Actionable comments posted/i.test(body)
-      && !newestReview?.body?.match(/Actionable comments posted/i)) {
-      reviewing = true;
-    }
-    // Command ack without a subsequent review yet
-    if (/review command invocation/i.test(body) && age < 15 * 60 * 1000) {
-      const reviewAfter = newestReview && new Date(newestReview.submittedAt).getTime() > at;
-      if (!reviewAfter) reviewing = true;
-    }
-  }
-
-  if (reviewing) {
+  // Finished cleanly with no formal review / threads (summarize widget only).
+  if (
+    [...comments, ...reviews].some((x) => crFinishedClearFromText(x.body))
+  ) {
     return {
-      state: 'reviewing',
+      state: 'clear',
       actionable: 0,
-      tip: 'CodeRabbit review in progress',
-      detail: 'Results will land on the PR shortly',
+      tip: 'Good to go',
+      detail: 'No unresolved CodeRabbit comments',
       limitedUntil: null,
       limitedSince: null,
       isPrivate,
@@ -612,7 +945,44 @@ function classifyPullRequestCr(pr, isPrivate) {
     };
   }
 
-  if (newestReview || reviews.length) {
+  // Soft in-progress from recent invocation without a finished review yet.
+  const crThreadCount = threads.filter((t) =>
+    isCrAuthor(t.comments?.nodes?.[0]?.author?.login)
+  ).length;
+  const threadsSettled = crThreadCount > 0 && actionable === 0;
+
+  let reviewing = false;
+  if (!threadsSettled) {
+    const recentCr = newestComment || newestReview;
+    if (recentCr) {
+      const body = newestComment?.body || newestReview?.body || '';
+      const at = new Date(
+        newestComment?.updatedAt || newestComment?.createdAt || newestReview?.submittedAt || 0
+      ).getTime();
+      const age = now - at;
+      const finished = /Actionable comments posted/i.test(newestReview?.body || '')
+        || /Review finished/i.test(body)
+        || /No actionable comments were generated in the recent review/i.test(body);
+      const reviewAfter = newestReview && new Date(newestReview.submittedAt).getTime() >= at - 2000;
+      if (
+        !finished
+        && !reviewAfter
+        && age < 45 * 60 * 1000
+        && /review command invocation|review_stack_entry_start|generating review|on it/i.test(body)
+        && !/summarize by coderabbit\.ai/i.test(body)
+      ) {
+        reviewing = true;
+      }
+    }
+  }
+
+  if (reviewing) {
+    return reviewingCrResult(pr.url, pr.number, isPrivate);
+  }
+
+  // reviews(last: N) can be all human replies after a busy thread — still treat
+  // resolved CR reviewThreads as "clear" even when no CR review is in that window.
+  if (newestReview || reviews.length || crThreadCount > 0) {
     return {
       state: 'clear',
       actionable: 0,
@@ -647,16 +1017,86 @@ function formatClock(iso) {
   }
 }
 
+function classifyCiFromRollup(state) {
+  if (!state) return null;
+  if (state === 'FAILURE' || state === 'ERROR') return 'failing';
+  if (state === 'PENDING' || state === 'EXPECTED') return 'running';
+  if (state === 'SUCCESS') return 'passing';
+  return null;
+}
+
 // Aggregate open-PR CI from statusCheckRollup (matches the PR checks UI).
 function classifyRepoCi(prNodes) {
   let sawPassing = false;
   let sawRunning = false;
   for (const pr of prNodes || []) {
     const state = pr?.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state;
-    if (!state) continue;
-    if (state === 'FAILURE' || state === 'ERROR') return 'failing';
-    if (state === 'PENDING' || state === 'EXPECTED') sawRunning = true;
-    else if (state === 'SUCCESS') sawPassing = true;
+    const one = classifyCiFromRollup(state);
+    if (one === 'failing') return 'failing';
+    if (one === 'running') sawRunning = true;
+    else if (one === 'passing') sawPassing = true;
+  }
+  if (sawRunning) return 'running';
+  if (sawPassing) return 'passing';
+  return null;
+}
+
+function thinCrForPr(cr) {
+  if (!cr) return { state: 'pending', actionable: 0 };
+  return {
+    state: cr.state || 'pending',
+    actionable: Number(cr.actionable) || 0,
+    tip: cr.tip || null,
+    detail: cr.detail || null,
+    limitedUntil: cr.limitedUntil || null,
+    limitedSince: cr.limitedSince || null,
+    limitQuality: cr.limitQuality || null,
+    prUrl: cr.prUrl || null,
+    prNumber: cr.prNumber || null,
+    fill: cr.fill ?? null,
+    autofix: cr.autofix || null,
+    taskUrl: cr.taskUrl || null
+  };
+}
+
+function buildPrsList(pulls, { ciByNumber, crByNumber } = {}) {
+  return (pulls || []).slice(0, 10).map((p) => {
+    const n = p.number;
+    const cr = crByNumber?.get?.(n) || null;
+    const user = p.user || p.author || null;
+    const login = user?.login || user?.name || null;
+    return {
+      number: n,
+      title: p.title || `PR #${n}`,
+      url: p.html_url || p.url || null,
+      ci: ciByNumber?.get?.(n) ?? null,
+      cr: thinCrForPr(cr),
+      author: login
+        ? {
+            login,
+            avatarUrl: user.avatar_url || user.avatarUrl
+              || `https://github.com/${login}.png?size=64`
+          }
+        : null
+    };
+  });
+}
+
+function setPrsForSlug(slug, pulls, opts) {
+  if (!pulls?.length) {
+    prsBySlug.set(slug, []);
+    return;
+  }
+  prsBySlug.set(slug, buildPrsList(pulls, opts));
+}
+
+function aggregateCiFromMap(ciByNumber) {
+  let sawPassing = false;
+  let sawRunning = false;
+  for (const ci of ciByNumber.values()) {
+    if (ci === 'failing') return 'failing';
+    if (ci === 'running') sawRunning = true;
+    else if (ci === 'passing') sawPassing = true;
   }
   if (sawRunning) return 'running';
   if (sawPassing) return 'passing';
@@ -690,6 +1130,7 @@ function mergeCrStates(perPr, openCount, isPrivate, slug) {
       rateLimitMemory.set(slug, {
         until: s.limitedUntil,
         since: s.limitedSince,
+        quality: s.limitQuality || 'fallback',
         isPrivate,
         prUrl: s.prUrl
       });
@@ -739,44 +1180,64 @@ function mergeCrStates(perPr, openCount, isPrivate, slug) {
 
   return {
     state: best.state,
-    actionable: actionableTotal,
+    actionable: (best.state === 'autofixing' || best.state === 'reviewing') ? 0 : actionableTotal,
     openPrs: openCount,
     isPrivate,
     tip: best.tip,
     detail: best.detail,
     limitedUntil: best.limitedUntil || null,
     limitedSince: best.limitedSince || null,
+    limitQuality: best.limitQuality || null,
     prUrl: best.prUrl || null,
     prNumber: best.prNumber || null,
-    fill
+    fill,
+    // --- CR Autofix (removable) ---
+    autofix: best.autofix || null,
+    taskUrl: best.taskUrl || null
+    // --- end CR Autofix ---
   };
 }
 
 function rebuildRateLimitBanner() {
   let privateWin = null;
   let ossWin = null;
-  for (const [, mem] of rateLimitMemory) {
-    const untilMs = new Date(mem.until).getTime();
-    if (untilMs <= Date.now()) continue;
-    const bucket = mem.isPrivate ? 'private' : 'oss';
+  const rank = { relative: 3, clock: 2, hourly: 1, fallback: 0 };
+  const consider = (bucket, next) => {
+    if (!next?.until) return;
+    const untilMs = new Date(next.until).getTime();
+    if (untilMs <= Date.now()) return;
     const cur = bucket === 'private' ? privateWin : ossWin;
-    if (!cur || untilMs > new Date(cur.until).getTime()) {
-      const next = { until: mem.until, since: mem.since };
+    if (!cur) {
+      if (bucket === 'private') privateWin = next;
+      else ossWin = next;
+      return;
+    }
+    const rc = rank[cur.quality] ?? 0;
+    const rn = rank[next.quality] ?? 0;
+    // Prefer explicit countdowns over +1h guesses; same quality → later unlock.
+    let take = false;
+    if (rn > rc) take = true;
+    else if (rn === rc && untilMs > new Date(cur.until).getTime()) take = true;
+    if (take) {
       if (bucket === 'private') privateWin = next;
       else ossWin = next;
     }
+  };
+
+  for (const [, mem] of rateLimitMemory) {
+    consider(mem.isPrivate ? 'private' : 'oss', {
+      until: mem.until,
+      since: mem.since,
+      quality: mem.quality || 'fallback'
+    });
   }
-  // Also consider live limited states from crBySlug
   for (const [, cr] of crBySlug) {
     if (cr.state !== 'limited' || !cr.limitedUntil) continue;
-    if (new Date(cr.limitedUntil).getTime() <= Date.now()) continue;
-    const bucket = cr.isPrivate ? 'private' : 'oss';
-    const cur = bucket === 'private' ? privateWin : ossWin;
-    if (!cur || new Date(cr.limitedUntil) > new Date(cur.until)) {
-      const next = { until: cr.limitedUntil, since: cr.limitedSince };
-      if (bucket === 'private') privateWin = next;
-      else ossWin = next;
-    }
+    consider(cr.isPrivate ? 'private' : 'oss', {
+      until: cr.limitedUntil,
+      since: cr.limitedSince,
+      quality: cr.limitQuality || 'fallback'
+    });
   }
   rateLimitBanner = { private: privateWin, oss: ossWin };
 }
@@ -860,6 +1321,7 @@ function ghApi(args) {
     }, (err, stdout, stderr) => {
       const raw = String(stdout || '');
       if (!raw) {
+        if (err?.code === 'ENOENT') ghUnavailable = true;
         resolve({ ok: false, err, stderr: String(stderr || ''), data: null });
         return;
       }
@@ -867,13 +1329,16 @@ function ghApi(args) {
         const parsed = JSON.parse(raw);
         const errors = parsed.errors || [];
         const rateLimited = errors.some((e) =>
-          e.type === 'RATE_LIMITED' || /rate limit/i.test(e.message || '')
-        );
+          e.type === 'RATE_LIMITED'
+          || e.type === 'RATE_LIMIT'
+          || /rate limit/i.test(e.message || '')
+          || /rate limit/i.test(parsed.message || '')
+        ) || /rate limit/i.test(parsed.message || '');
         if (rateLimited) {
           resolve({ ok: false, rateLimited: true, data: parsed.data || null, errors });
           return;
         }
-        if (err && !parsed.data && parsed.message) {
+        if (err && parsed.data === undefined && parsed.message) {
           resolve({ ok: false, err, data: null, message: parsed.message });
           return;
         }
@@ -885,117 +1350,556 @@ function ghApi(args) {
   });
 }
 
+function classifyCiFromRest(statusState, checkRuns) {
+  const runs = checkRuns || [];
+  let busy = false;
+  let failed = false;
+  let ok = false;
+  for (const run of runs) {
+    const conclusion = run.conclusion || null;
+    const status = run.status || null;
+    if (
+      conclusion === 'failure'
+      || conclusion === 'timed_out'
+      || conclusion === 'startup_failure'
+      || conclusion === 'action_required'
+    ) {
+      failed = true;
+    } else if (!conclusion && (status === 'queued' || status === 'in_progress' || status === 'waiting' || status === 'pending')) {
+      busy = true;
+    } else if (conclusion === 'success' || conclusion === 'neutral' || conclusion === 'skipped') {
+      ok = true;
+    }
+  }
+  if (failed || statusState === 'failure' || statusState === 'error') return 'failing';
+  // Prefer concrete check runs over legacy combined status — empty forever-
+  // queued apps (Cursor/CodeRabbit shells) leave status=pending after green CI.
+  if (busy) return 'running';
+  if (ok) return 'passing';
+  if (statusState === 'pending') return 'running';
+  if (statusState === 'success') return 'passing';
+  return null;
+}
+
+function classifyCrFromRest({ pull, comments, reviews, reviewComments, suites, statuses, isPrivate }) {
+  const prUrl = pull.html_url;
+  const prNumber = pull.number;
+  const crComments = (comments || []).filter((c) => isCrAuthor(c.user?.login));
+  const crReviews = (reviews || []).filter((r) => isCrAuthor(r.user?.login));
+
+  let rateWindow = collectRateLimitWindows({ comments: crComments, reviews: crReviews });
+  const now = Date.now();
+  if (rateWindow && new Date(rateWindow.until).getTime() > now) {
+    return {
+      state: 'limited',
+      actionable: 0,
+      tip: 'Review rate-limited',
+      detail: `Capacity returns at ${formatClock(rateWindow.until)}`,
+      limitedUntil: rateWindow.until,
+      limitedSince: rateWindow.since,
+      limitQuality: rateWindow.quality || 'fallback',
+      isPrivate,
+      prUrl,
+      prNumber
+    };
+  }
+
+  // Live check/status beats stale clear from an earlier review cycle.
+  if (crLiveReviewing({
+    suites: suites || [],
+    statuses: statuses || [],
+    comments: crComments,
+    reviews: crReviews
+  })) {
+    return reviewingCrResult(prUrl, prNumber, isPrivate);
+  }
+
+  const newestReview = crReviews.length ? crReviews[crReviews.length - 1] : null;
+  const newestComment = crComments.length ? crComments[crComments.length - 1] : null;
+
+  // "Actionable comments posted: N" is a point-in-time review summary — it stays
+  // N even after threads are resolved. Only trust an explicit 0; live counts
+  // come from GraphQL reviewThreads.
+  let postedCount = null;
+  for (const r of [...crReviews].reverse()) {
+    const m = r.body?.match(/Actionable comments posted:\s*(\d+)/i);
+    if (m) {
+      postedCount = parseInt(m[1], 10) || 0;
+      break;
+    }
+  }
+  if (postedCount === 0) {
+    return {
+      state: 'clear',
+      actionable: 0,
+      tip: 'Good to go',
+      detail: 'No unresolved CodeRabbit comments',
+      limitedUntil: null,
+      limitedSince: null,
+      isPrivate,
+      prUrl,
+      prNumber
+    };
+  }
+
+  // Same clear signal can live only on the summarize issue comment (no review).
+  if (crComments.some((c) => crFinishedClearFromText(c.body))) {
+    return {
+      state: 'clear',
+      actionable: 0,
+      tip: 'Good to go',
+      detail: 'No unresolved CodeRabbit comments',
+      limitedUntil: null,
+      limitedSince: null,
+      isPrivate,
+      prUrl,
+      prNumber
+    };
+  }
+
+  // Soft in-progress from recent invocation without a finished review yet.
+  let reviewing = false;
+  const recent = newestComment || newestReview;
+  if (recent) {
+    const body = recent.body || '';
+    const at = new Date(recent.created_at || recent.submitted_at || 0).getTime();
+    const age = now - at;
+    const finished = /Actionable comments posted/i.test(newestReview?.body || '')
+      || /Review finished/i.test(body)
+      || /No actionable comments were generated in the recent review/i.test(body);
+    if (
+      !finished
+      && age < 20 * 60 * 1000
+      && !/summarize by coderabbit\.ai/i.test(body)
+      && /review command invocation|review_stack_entry_start|generating review|on it/i.test(body)
+    ) {
+      reviewing = true;
+    }
+    if (!finished && /review command invocation|review_stack_entry_start/i.test(body) && age < 20 * 60 * 1000) {
+      const reviewAfter = newestReview && new Date(newestReview.submitted_at).getTime() > at;
+      if (!reviewAfter && !/summarize by coderabbit\.ai/i.test(body)) reviewing = true;
+    }
+  }
+
+  if (reviewing) {
+    return reviewingCrResult(prUrl, prNumber, isPrivate);
+  }
+
+  // REST cannot see isResolved. If a review reported findings, stay neutral
+  // until GraphQL reviewThreads confirm clear vs actionable (avoids stale badges).
+  if (postedCount != null && postedCount > 0) {
+    return {
+      state: 'pending',
+      actionable: 0,
+      tip: 'Checking CodeRabbit threads',
+      detail: 'Confirming unresolved comments',
+      limitedUntil: null,
+      limitedSince: null,
+      isPrivate,
+      prUrl,
+      prNumber
+    };
+  }
+
+  if (newestReview || crReviews.length) {
+    return {
+      state: 'clear',
+      actionable: 0,
+      tip: 'Good to go',
+      detail: 'No unresolved CodeRabbit comments',
+      limitedUntil: null,
+      limitedSince: null,
+      isPrivate,
+      prUrl,
+      prNumber
+    };
+  }
+
+  return {
+    state: 'pending',
+    actionable: 0,
+    tip: 'Waiting on CodeRabbit',
+    detail: 'Review hasn’t started yet',
+    limitedUntil: null,
+    limitedSince: null,
+    isPrivate,
+    prUrl,
+    prNumber
+  };
+}
+
+async function enrichCrViaRest(s, pulls) {
+  const pull = pulls[0];
+  const n = pull.number;
+  const sha = pull.head?.sha;
+  const [comments, reviews, reviewComments, suites, status] = await Promise.all([
+    ghApi(['api', `repos/${s.owner}/${s.name}/issues/${n}/comments?per_page=40`]),
+    ghApi(['api', `repos/${s.owner}/${s.name}/pulls/${n}/reviews?per_page=30`]),
+    ghApi(['api', `repos/${s.owner}/${s.name}/pulls/${n}/comments?per_page=50`]),
+    sha
+      ? ghApi(['api', `repos/${s.owner}/${s.name}/commits/${sha}/check-suites`])
+      : Promise.resolve({ ok: false, data: null }),
+    sha
+      ? ghApi(['api', `repos/${s.owner}/${s.name}/commits/${sha}/status`])
+      : Promise.resolve({ ok: false, data: null })
+  ]);
+  if (
+    comments.rateLimited
+    || reviews.rateLimited
+    || reviewComments.rateLimited
+    || suites.rateLimited
+    || status.rateLimited
+  ) {
+    return { rateLimited: true };
+  }
+  const issueComments = comments.ok ? comments.data : [];
+  let classified = classifyCrFromRest({
+    pull,
+    comments: issueComments,
+    reviews: reviews.ok ? reviews.data : [],
+    reviewComments: reviewComments.ok ? reviewComments.data : [],
+    suites: suites.ok ? (suites.data?.check_suites || []) : [],
+    statuses: status.ok ? (status.data?.statuses || []) : [],
+    isPrivate: false
+  });
+  // --- CR Autofix (removable) ---
+  classified = crAutofix.overlayAutofix(classified, { slug: s.slug, comments: issueComments });
+  // --- end CR Autofix ---
+  // mergeCrStates expects an array of per-PR classifications
+  const perPr = pulls.map((p, i) => (i === 0 ? classified : {
+    state: 'pending',
+    actionable: 0,
+    tip: null,
+    detail: null,
+    limitedUntil: null,
+    limitedSince: null,
+    isPrivate: false,
+    prUrl: p.html_url,
+    prNumber: p.number
+  }));
+  crBySlug.set(s.slug, mergeCrStates(perPr, pulls.length, false, s.slug));
+  return { ok: true, perPr };
+}
+
+// REST is the durable path (core API). GraphQL is optional enrichment for
+// CodeRabbit details — secondary GraphQL throttles were leaving cards stuck.
 async function refreshOneRepoInsights(s) {
-  const query = `query {
-    repository(owner: "${s.owner}", name: "${s.name}") {
-      isPrivate
-      pullRequests(states: OPEN, first: 10) {
-        totalCount
+  const rest = await ghApi([
+    'api',
+    `repos/${s.owner}/${s.name}/pulls?state=open&per_page=10`
+  ]);
+  if (rest.rateLimited) return { rateLimited: true, via: 'rest' };
+  if (!rest.ok || !Array.isArray(rest.data)) return { ok: false };
+  const pulls = rest.data;
+  openPrCounts.set(s.slug, pulls.length);
+
+  const ciByNumber = new Map();
+  // REST CI for the primary (newest) open PR; GraphQL fills siblings via rollup.
+  if (pulls[0]?.head?.sha) {
+    const sha = pulls[0].head.sha;
+    const [st, checks] = await Promise.all([
+      ghApi(['api', `repos/${s.owner}/${s.name}/commits/${sha}/status`]),
+      ghApi(['api', `repos/${s.owner}/${s.name}/commits/${sha}/check-runs?per_page=50`])
+    ]);
+    if (!st.rateLimited && !checks.rateLimited) {
+      const statusState = st.ok ? st.data?.state : null;
+      const checkRuns = checks.ok ? (checks.data?.check_runs || []) : [];
+      const one = classifyCiFromRest(statusState, checkRuns);
+      if (one) ciByNumber.set(pulls[0].number, one);
+    }
+  }
+  const ci = aggregateCiFromMap(ciByNumber);
+  if (ci) ciStateBySlug.set(s.slug, ci);
+  else ciStateBySlug.delete(s.slug);
+
+  if (!pulls.length) {
+    rateLimitMemory.delete(s.slug);
+    crBySlug.set(s.slug, mergeCrStates([], 0, false, s.slug));
+    prsBySlug.set(s.slug, []);
+    return { ok: true };
+  }
+
+  // Prefer REST CR classification — works while GraphQL is throttled.
+  const prevCr = crBySlug.get(s.slug);
+  const restCr = await enrichCrViaRest(s, pulls);
+  if (restCr.rateLimited) return { rateLimited: true, via: 'rest' };
+
+  const restCrByNumber = new Map((restCr.perPr || []).map((c) => [c.prNumber, c]));
+  setPrsForSlug(s.slug, pulls, { ciByNumber, crByNumber: restCrByNumber });
+
+  // Sticky-preserve clear/actionable across REST's "pending" placeholder.
+  // REST cannot see isResolved, so it returns pending when a review posted
+  // findings — without this, the UI (and CR notifications) flap every refresh
+  // until GraphQL enrichment re-confirms. GraphQL below still overrides to
+  // clear once threads are actually resolved.
+  {
+    const restState = crBySlug.get(s.slug);
+    if (
+      prevCr
+      && restState
+      && prevCr.prNumber === restState.prNumber
+      && (prevCr.state === 'clear' || prevCr.state === 'actionable')
+      && (restState.state === 'pending' || restState.state === 'empty')
+    ) {
+      crBySlug.set(s.slug, {
+        ...prevCr,
+        openPrs: restState.openPrs ?? prevCr.openPrs,
+        isPrivate: restState.isPrivate ?? prevCr.isPrivate
+      });
+    }
+  }
+
+  // Optional GraphQL enrichment for unresolved reviewThreads (more accurate
+  // actionable counts) when not throttled.
+  if (Date.now() >= ghGraphqlNextAt) {
+    const numbers = pulls.slice(0, 5).map((p) => p.number);
+    const prFields = numbers.map((n, i) => `  p${i}: pullRequest(number: ${n}) {
+      number
+      title
+      url
+      reviews(last: 8) {
+        nodes { author { login } state body submittedAt }
+      }
+      comments(last: 12) {
+        nodes { author { login } body createdAt updatedAt }
+      }
+      reviewThreads(first: 30) {
         nodes {
-          number
-          url
-          title
-          commits(last: 1) {
-            nodes {
-              commit {
-                statusCheckRollup { state }
-              }
+          isResolved
+          comments(first: 1) { nodes { author { login } } }
+        }
+      }
+      commits(last: 1) {
+        nodes {
+          commit {
+            statusCheckRollup { state }
+            status {
+              contexts { context state description createdAt }
             }
-          }
-          reviews(last: 8) {
-            nodes {
-              author { login }
-              state
-              body
-              submittedAt
-            }
-          }
-          comments(last: 12) {
-            nodes {
-              author { login }
-              body
-              createdAt
-            }
-          }
-          reviewThreads(first: 30) {
-            nodes {
-              isResolved
-              comments(first: 1) {
-                nodes { author { login } }
+            checkSuites(first: 12) {
+              nodes {
+                app { name slug }
+                status conclusion updatedAt createdAt
+                checkRuns(first: 10) {
+                  nodes { name title status conclusion }
+                }
               }
             }
           }
         }
       }
-    }
-  }`;
-
-  const res = await ghApi(['api', 'graphql', '-f', `query=${query}`]);
-  if (res.rateLimited) return { rateLimited: true };
-  if (!res.ok || !res.data?.repository?.pullRequests) {
-    // REST fallback: at least surface open PR count/CI when GraphQL flakes.
-    const rest = await ghApi([
-      'api',
-      `repos/${s.owner}/${s.name}/pulls?state=open&per_page=10`
-    ]);
-    if (rest.rateLimited) return { rateLimited: true };
-    if (!rest.ok || !Array.isArray(rest.data)) return { ok: false };
-    const pulls = rest.data;
-    openPrCounts.set(s.slug, pulls.length);
-    // Best-effort CI from combined status on the first PR head.
-    let ci = null;
-    if (pulls[0]?.head?.sha) {
-      const st = await ghApi([
-        'api',
-        `repos/${s.owner}/${s.name}/commits/${pulls[0].head.sha}/status`
-      ]);
-      const state = st.data?.state;
-      if (state === 'failure' || state === 'error') ci = 'failing';
-      else if (state === 'pending') ci = 'running';
-      else if (state === 'success') ci = 'passing';
-    }
-    if (ci) ciStateBySlug.set(s.slug, ci);
-    else ciStateBySlug.delete(s.slug);
-    // Minimal CR stub so the chip isn't stuck empty when a PR is open.
-    if (!pulls.length) {
-      crBySlug.set(s.slug, mergeCrStates([], 0, false, s.slug));
-    } else if (!crBySlug.has(s.slug) || crBySlug.get(s.slug)?.state === 'empty') {
-      crBySlug.set(s.slug, {
-        state: 'pending',
-        actionable: 0,
-        openPrs: pulls.length,
-        isPrivate: false,
-        tip: 'Waiting on CodeRabbit',
-        detail: 'Review hasn’t started yet',
-        limitedUntil: null,
-        limitedSince: null,
-        prUrl: pulls[0].html_url,
-        prNumber: pulls[0].number,
-        fill: null
+    }`).join('\n');
+    const query = `query {
+      repository(owner: "${s.owner}", name: "${s.name}") {
+        isPrivate
+        ${prFields}
+      }
+    }`;
+    const gq = await ghApi(['api', 'graphql', '-f', `query=${query}`]);
+    if (gq.rateLimited) {
+      ghGraphqlNextAt = Date.now() + GH_GRAPHQL_BACKOFF_MS;
+      console.log(`GitHub GraphQL throttled — CR thread enrichment pause ${GH_GRAPHQL_BACKOFF_MS / 1000}s (REST CR still live)`);
+    } else if (gq.ok && gq.data?.repository) {
+      const repo = gq.data.repository;
+      const isPrivate = !!repo.isPrivate;
+      const nodes = numbers.map((_, i) => repo[`p${i}`]).filter(Boolean);
+      const perPr = nodes.map((pr) => {
+        let classified = classifyPullRequestCr(pr, isPrivate);
+        // --- CR Autofix (removable) ---
+        classified = crAutofix.overlayAutofix(classified, {
+          slug: s.slug,
+          comments: pr.comments?.nodes || []
+        });
+        // --- end CR Autofix ---
+        return classified;
       });
-    } else {
-      const prev = crBySlug.get(s.slug);
-      crBySlug.set(s.slug, { ...prev, openPrs: pulls.length });
+      const gqCiByNumber = new Map(ciByNumber);
+      for (const pr of nodes) {
+        const rollup = pr?.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state;
+        const one = classifyCiFromRollup(rollup);
+        if (one) gqCiByNumber.set(pr.number, one);
+      }
+      const gqCi = aggregateCiFromMap(gqCiByNumber) || classifyRepoCi(nodes);
+      if (gqCi) ciStateBySlug.set(s.slug, gqCi);
+      else ciStateBySlug.delete(s.slug);
+
+      const crByNumber = new Map(perPr.map((c) => [c.prNumber, c]));
+      // Preserve titles/urls from REST pulls; GraphQL may omit some fields under load.
+      const titleByNumber = new Map(pulls.map((p) => [p.number, p]));
+      for (const pr of nodes) {
+        const base = titleByNumber.get(pr.number) || {};
+        titleByNumber.set(pr.number, {
+          ...base,
+          number: pr.number,
+          title: pr.title || base.title,
+          html_url: pr.url || base.html_url || base.url
+        });
+      }
+      setPrsForSlug(s.slug, pulls.map((p) => titleByNumber.get(p.number) || p), {
+        ciByNumber: gqCiByNumber,
+        crByNumber
+      });
+
+      const fromGq = mergeCrStates(perPr, pulls.length, isPrivate, s.slug);
+      const fromRest = crBySlug.get(s.slug);
+      // GraphQL is better for unresolved threads; don't let it regress a live
+      // REST "reviewing" signal back to pending.
+      let merged = preferCrState(fromRest, fromGq);
+      // --- CR Autofix (removable) ---
+      // Prefer live autofixing over a thin GraphQL actionable/clear flip mid-run.
+      // Delivery / leftover are sticky outcomes from Autofix status comments.
+      if (fromGq?.state === 'delivery') {
+        merged = fromGq;
+      } else if (fromRest?.state === 'autofixing' && merged?.state !== 'autofixing' && merged?.state !== 'delivery') {
+        merged = {
+          ...merged,
+          state: 'autofixing',
+          actionable: 0,
+          tip: fromRest.tip,
+          detail: fromRest.detail,
+          autofix: fromRest.autofix,
+          taskUrl: fromRest.taskUrl || merged.taskUrl
+        };
+      } else if (fromRest?.state === 'delivery' && merged?.state !== 'delivery') {
+        merged = {
+          ...merged,
+          state: 'delivery',
+          tip: fromRest.tip,
+          detail: fromRest.detail,
+          autofix: fromRest.autofix,
+          actionable: merged.actionable ?? fromRest.actionable,
+          taskUrl: fromRest.taskUrl || merged.taskUrl
+        };
+      } else if (fromRest?.state === 'leftover' && merged?.state === 'actionable') {
+        merged = {
+          ...merged,
+          state: 'leftover',
+          tip: fromRest.tip,
+          detail: fromRest.detail,
+          autofix: fromRest.autofix,
+          taskUrl: fromRest.taskUrl || merged.taskUrl
+        };
+      } else if (
+        fromRest?.state === 'reviewing'
+        && fromRest?.autofix?.phase === 'reviewing'
+        && (merged?.state === 'pending' || merged?.state === 'ready' || merged?.state === 'empty')
+      ) {
+        merged = {
+          ...merged,
+          state: 'reviewing',
+          actionable: 0,
+          tip: fromRest.tip,
+          detail: fromRest.detail,
+          autofix: fromRest.autofix,
+          taskUrl: fromRest.taskUrl || merged.taskUrl
+        };
+      }
+      // --- end CR Autofix ---
+      crBySlug.set(s.slug, merged);
+      return { ok: true, enriched: true };
     }
-    return { ok: true, fallback: true };
   }
 
-  const repo = res.data.repository;
-  const isPrivate = !!repo.isPrivate;
-  const prs = repo.pullRequests;
-  openPrCounts.set(s.slug, prs.totalCount);
-  const nodes = prs.nodes || [];
-  const ci = classifyRepoCi(nodes);
-  if (ci) ciStateBySlug.set(s.slug, ci);
-  else ciStateBySlug.delete(s.slug);
-  const perPr = nodes.map((pr) => classifyPullRequestCr(pr, isPrivate));
-  crBySlug.set(s.slug, mergeCrStates(perPr, prs.totalCount, isPrivate, s.slug));
   return { ok: true };
+}
+
+function preferCrState(rest, gq) {
+  if (!gq) return rest || null;
+  if (!rest) return gq;
+  // --- CR Autofix (removable) ---
+  if (rest.state === 'autofixing' && gq.state !== 'autofixing') {
+    if (gq.state === 'delivery' || gq.state === 'leftover' || gq.autofix?.phase === 'completed' || gq.autofix?.phase === 'failed' || gq.autofix?.phase === 'delivery') {
+      return {
+        ...gq,
+        isPrivate: gq.isPrivate ?? rest.isPrivate,
+        openPrs: gq.openPrs ?? rest.openPrs
+      };
+    }
+    return {
+      ...rest,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs,
+      prUrl: gq.prUrl || rest.prUrl,
+      prNumber: gq.prNumber || rest.prNumber
+    };
+  }
+  if (gq.state === 'delivery' || rest.state === 'delivery') {
+    const src = gq.state === 'delivery' ? gq : rest;
+    return {
+      ...src,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs,
+      actionable: gq.actionable || rest.actionable || src.actionable || 0,
+      taskUrl: src.taskUrl || gq.taskUrl || rest.taskUrl || null
+    };
+  }
+  if (gq.state === 'leftover' || rest.state === 'leftover') {
+    const src = gq.state === 'leftover' ? gq : rest;
+    // Prefer GraphQL actionable count under leftover.
+    return {
+      ...src,
+      actionable: gq.actionable || rest.actionable || src.actionable || 0,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs,
+      taskUrl: src.taskUrl || gq.taskUrl || rest.taskUrl || null
+    };
+  }
+  // --- end CR Autofix ---
+  // Live reviewing beats stale clear/actionable from a prior review cycle.
+  if (
+    rest.state === 'reviewing'
+    && (gq.state === 'clear' || gq.state === 'actionable' || gq.state === 'pending' || gq.state === 'ready' || gq.state === 'empty')
+  ) {
+    return {
+      ...rest,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs
+    };
+  }
+  if (
+    gq.state === 'reviewing'
+    && (rest.state === 'clear' || rest.state === 'actionable' || rest.state === 'pending' || rest.state === 'ready' || rest.state === 'empty')
+  ) {
+    return {
+      ...gq,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs
+    };
+  }
+  // GraphQL reviewThreads are the source of truth for actionable vs clear
+  // (REST "Actionable comments posted: N" and comment totals stay stale after
+  // threads are resolved).
+  if (gq.state === 'clear' || gq.state === 'actionable') {
+    return {
+      ...gq,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs
+    };
+  }
+  // Don't let a thin GraphQL pass wipe a live REST "reviewing" signal.
+  if (rest.state === 'reviewing' && (gq.state === 'pending' || gq.state === 'empty')) {
+    return { ...rest, isPrivate: gq.isPrivate ?? rest.isPrivate, openPrs: gq.openPrs ?? rest.openPrs };
+  }
+  if ((STATE_RANK[gq.state] || 0) >= (STATE_RANK[rest.state] || 0)) return gq;
+  return rest;
+}
+
+async function refreshGithubLogin() {
+  if (ghUnavailable) return;
+  if (githubLogin && Date.now() - githubLoginFetchedAt < 30 * 60 * 1000) return;
+  const res = await ghApi(['api', 'user']);
+  const login = res.data?.login || null;
+  if (res.ok && login) {
+    githubLogin = String(login).trim() || null;
+    githubLoginFetchedAt = Date.now();
+  }
 }
 
 async function refreshGithubInsights() {
   if (ghUnavailable || ghRefreshInFlight) return;
-  if (Date.now() < ghNextRefreshAt) return;
+  if (Date.now() < ghRestNextAt) return;
+
+  await refreshGithubLogin();
 
   const slugs = [];
   for (const proj of config.projects || []) {
@@ -1004,18 +1908,20 @@ async function refreshGithubInsights() {
   }
   if (!slugs.length) return;
 
+  // Round-robin: refresh one repo per tick so request load is steady instead
+  // of a 7-repo burst every N seconds.
+  const s = slugs[ghStaggerIndex % slugs.length];
+  ghStaggerIndex = (ghStaggerIndex + 1) % slugs.length;
+
   ghRefreshInFlight = true;
   try {
-    for (const s of slugs) {
-      const result = await refreshOneRepoInsights(s);
-      if (result?.rateLimited) {
-        ghNextRefreshAt = Date.now() + GH_REFRESH_BACKOFF_MS;
-        console.log(`GitHub rate-limited on ${s.slug} — backing off ${GH_REFRESH_BACKOFF_MS / 1000}s`);
-        return;
-      }
+    const result = await refreshOneRepoInsights(s);
+    if (result?.rateLimited && result.via === 'rest') {
+      ghRestNextAt = Date.now() + GH_REST_BACKOFF_MS;
+      console.log(`GitHub REST rate-limited on ${s.slug} — backing off ${GH_REST_BACKOFF_MS / 1000}s`);
+    } else {
+      rebuildRateLimitBanner();
     }
-    rebuildRateLimitBanner();
-    ghNextRefreshAt = Date.now() + GH_REFRESH_MS;
   } catch (e) {
     console.log('GitHub insights refresh failed:', e.message);
   } finally {
@@ -1023,7 +1929,7 @@ async function refreshGithubInsights() {
   }
 }
 
-setInterval(() => { refreshGithubInsights().catch(() => {}); }, 5000);
+setInterval(() => { refreshGithubInsights().catch(() => {}); }, GH_STAGGER_MS);
 refreshGithubInsights().catch(() => {});
 setInterval(() => { refreshGitStates().catch(() => {}); }, GIT_REFRESH_MS);
 refreshGitStates().catch(() => {});
@@ -1291,17 +2197,21 @@ const server = http.createServer(async (req, res) => {
   // API Endpoints
   if (url.pathname === '/api/meta') {
     const dashboardPath = __dirname;
-    const registerCmd = `node "${path.join(dashboardPath, 'register.mjs')}" "<Project Name>" "<absolute-directory>" <port>`;
+    const registerCurl = `curl -sS -X POST http://localhost:4000/api/register -H 'Content-Type: application/json' -d '{"protocol":${AGENT_PROTOCOL_VERSION},"name":"Project Name","directory":"/absolute/path","port":5180}'`;
+    const registerCmd = `export LOCAL_DEV_DASHBOARD=${dashboardPath}; node "$LOCAL_DEV_DASHBOARD/register.mjs" "<Project Name>" "<absolute-directory>" <port>`;
     const prompt = [
       'Add this project to my local Dev Dashboard.',
       '',
       `Dashboard: ${dashboardPath}`,
+      `Agent protocol: v${AGENT_PROTOCOL_VERSION}`,
       '',
       '1. Detect this project\'s display name, absolute directory path, and default/configured dev server port (e.g. Vite server.port).',
-      '2. Register it by running:',
-      `   ${registerCmd}`,
-      '   Or if the dashboard is already running on http://localhost:4000, POST to /api/register with JSON { "name", "directory", "port" }.',
-      '3. Confirm the name, path, and port after registering. You do not need to open the dashboard repo.',
+      '2. Prefer portable register (dashboard must be running):',
+      `   ${registerCurl}`,
+      `   Optional local helper: ${registerCmd}`,
+      '3. At session start (and whenever a dashboard response has stale:true), GET http://localhost:4000/api/agent-protocol and save `instructions` to AGENTS.md in this project (optional editor-specific mirrors OK).',
+      '4. When starting or finishing work on a PR, POST http://localhost:4000/api/agent-activity with { "protocol": ' + AGENT_PROTOCOL_VERSION + ', "phase": "start"|"finish", "directory": "<abs path>", "pr": <PR_NUMBER>, "summary": "<short>", "agent": "<cursor|antigravity|other>" }. Use the active PR number — do not copy a stale example.',
+      '5. Confirm the name, path, and port after registering.',
     ].join('\n');
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1309,21 +2219,88 @@ const server = http.createServer(async (req, res) => {
       dashboardPath,
       registerScript: path.join(dashboardPath, 'register.mjs'),
       registerCommand: registerCmd,
+      registerCurl,
       agentPrompt: prompt,
+      protocol: AGENT_PROTOCOL_VERSION,
     }));
+    return;
+  }
+
+  if (url.pathname === '/api/agent-protocol') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      protocol: AGENT_PROTOCOL_VERSION,
+      stale: false,
+      instructions: readAgentInstructions(),
+      instructionsPath: 'AGENTS.md',
+      protocolUrl: 'http://localhost:4000/api/agent-protocol',
+      endpoints: {
+        activity: 'POST /api/agent-activity',
+        protocol: 'GET /api/agent-protocol',
+        register: 'POST /api/register',
+      }
+    }));
+    return;
+  }
+
+  if (url.pathname === '/api/agent-activity' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const proto = protocolPayload(payload.protocol);
+        const project = resolveProjectForAgent(payload);
+        if (!project) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Project not found. Pass projectId, directory, or repo of a registered dashboard project.',
+            ...proto
+          }));
+          return;
+        }
+        const agent = setAgentActivity(project.id, payload);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          ok: true,
+          projectId: project.id,
+          name: project.name,
+          agent,
+          ...proto
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message, protocol: AGENT_PROTOCOL_VERSION }));
+      }
+    });
     return;
   }
 
   if (url.pathname === '/api/status') {
     const projects = config.projects.map(proj => {
       const slug = parseRepoSlug(proj.repo);
-      const cr = slug ? crBySlug.get(slug.slug) : null;
+      let cr = slug ? crBySlug.get(slug.slug) : null;
+      // --- CR Autofix (removable) ---
+      cr = crAutofix.finalizeAutofixForStatus(cr, slug?.slug);
+      // --- end CR Autofix ---
+      let prs = slug ? (prsBySlug.get(slug.slug) || []) : [];
+      if (cr && prs.length) {
+        // Mirror sticky autofix/leftover onto the matching PR card.
+        prs = prs.map((p) => {
+          if (cr.prNumber && p.number === cr.prNumber) {
+            return { ...p, cr: thinCrForPr({ ...p.cr, ...cr, prNumber: p.number }) };
+          }
+          return p;
+        });
+      }
       return {
         ...proj,
         openPrs: slug && openPrCounts.has(slug.slug) ? openPrCounts.get(slug.slug) : null,
         ci: slug ? (ciStateBySlug.get(slug.slug) || null) : null,
         cr: cr || { state: 'empty', actionable: 0, openPrs: 0 },
+        prs,
         git: gitStateByProject.get(proj.id) || null,
+        agent: getAgentActivity(proj.id),
         services: proj.services.map(s => {
           const state = serviceState.get(s.id) || { status: 'stopped', logs: [], pid: null, startTime: null };
           const isPortOpen = portState.get(s.port) || false;
@@ -1352,10 +2329,79 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       projects,
-      rateLimit: rateLimitBanner
+      globalLinks: Array.isArray(config.globalLinks) ? config.globalLinks : [],
+      github: { login: githubLogin },
+      rateLimit: rateLimitBanner,
+      apiLimit: {
+        restUntil: ghRestNextAt > Date.now() ? new Date(ghRestNextAt).toISOString() : null,
+        graphqlUntil: ghGraphqlNextAt > Date.now() ? new Date(ghGraphqlNextAt).toISOString() : null
+      },
+      // --- CR Autofix (removable) ---
+      features: { crAutofix: crAutofix.CR_AUTOFIX_ENABLED }
+      // --- end CR Autofix ---
     }));
     return;
   }
+
+  // --- CR Autofix (removable) ---
+  if (
+    crAutofix.CR_AUTOFIX_ENABLED
+    && (url.pathname === '/api/cr-action' || url.pathname === '/api/cr-autofix')
+    && req.method === 'POST'
+  ) {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const action = url.pathname === '/api/cr-autofix'
+          ? 'autofix'
+          : (payload.action === 'review' ? 'review' : 'autofix');
+        const project = payload.projectId
+          ? findProject(payload.projectId)
+          : null;
+        const repoUrl = project?.repo || payload.repo || null;
+        const slug = parseRepoSlug(repoUrl);
+        if (!slug) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Project needs a GitHub repo' }));
+          return;
+        }
+        const cr = crBySlug.get(slug.slug);
+        const prNumber = Number(payload.pr || payload.prNumber || cr?.prNumber);
+        if (!prNumber) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'No open PR number — open a PR or pass pr' }));
+          return;
+        }
+        const result = await crAutofix.postCrActionComment({
+          owner: slug.owner,
+          name: slug.name,
+          prNumber,
+          action,
+          env: buildChildEnv()
+        });
+        if (!result.ok) {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+          return;
+        }
+        if (cr) {
+          crBySlug.set(slug.slug, crAutofix.overlayAutofix(
+            { ...cr, prNumber },
+            { slug: slug.slug, comments: [] }
+          ));
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+  // --- end CR Autofix ---
 
   if (url.pathname === '/api/start' && req.method === 'POST') {
     let body = '';
@@ -1442,7 +2488,8 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { id, name, directory, description, command, args, port, url: serviceUrl, repo, liveUrl } = JSON.parse(body || '{}');
+        const payload = JSON.parse(body || '{}');
+        const { id, name, directory, description, command, args, port, url: serviceUrl, repo, liveUrl, protocol } = payload;
         if (!name || !directory || !port) {
           throw new Error('name, directory, and port are required fields');
         }
@@ -1489,7 +2536,77 @@ const server = http.createServer(async (req, res) => {
         updatePortStatuses();
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, project }));
+        res.end(JSON.stringify({ success: true, project, ...protocolPayload(protocol) }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message, protocol: AGENT_PROTOCOL_VERSION }));
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/link-icons') {
+    const iconsPath = path.join(__dirname, 'public', 'link-icons.json');
+    if (req.method === 'GET') {
+      try {
+        const raw = fs.readFileSync(iconsPath, 'utf8');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(raw);
+      } catch {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{}');
+      }
+      return;
+    }
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Expected an object of label → url' }));
+            return;
+          }
+          const cleaned = {};
+          for (const [key, val] of Object.entries(payload)) {
+            const k = String(key || '').trim().toLowerCase();
+            if (!k) continue;
+            if (val == null || val === '') continue;
+            cleaned[k] = String(val).trim();
+          }
+          fs.writeFileSync(iconsPath, `${JSON.stringify(cleaned, null, 2)}\n`, 'utf8');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, icons: cleaned }));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+      return;
+    }
+  }
+
+  if (url.pathname === '/api/global-links' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const rawLinks = Array.isArray(payload)
+          ? payload
+          : (Array.isArray(payload.links) ? payload.links : null);
+        if (!rawLinks) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Expected { links: [...] }' }));
+          return;
+        }
+        config.globalLinks = rawLinks.map(sanitizeLink).filter(Boolean);
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+        loadConfig();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, globalLinks: config.globalLinks || [] }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));

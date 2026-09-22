@@ -1,0 +1,24 @@
+---
+description: Cursor agent sandbox blocks gh — request network perms, don't refresh auth
+alwaysApply: true
+---
+
+# GitHub CLI (`gh`) and the Cursor agent sandbox
+
+On this machine, `gh` is normally authenticated as **rickcedwhat-ai** via the macOS keyring. That auth is fine.
+
+Cursor **agent shells default to a sandbox** with a limited network allowlist. In that sandbox, `gh api` / `gh issue` / `gh pr` / `gh pr comment` often fail with **HTTP Forbidden** (sometimes misreported as “The token in keyring is invalid”). This is **not** broken machine auth.
+
+## Required behavior
+
+When running any `gh` command that talks to `github.com` / `api.github.com`:
+
+1. Request elevated permissions so the command leaves the default allowlist sandbox:
+   - Prefer `required_permissions: ["full_network"]`
+   - Use `required_permissions: ["all"]` if keyring access is also blocked
+2. If the first attempt returns Forbidden / “keyring is invalid” under the default sandbox:
+   - **Do not** run `gh auth logout`, `gh auth refresh`, or paste tokens
+   - Re-run the **same** command with `full_network` or `all` and ask the user to approve the permission prompt
+3. Only treat auth as broken if the same `gh` command fails in a normal Terminal.app / iTerm window outside Cursor
+
+Antigravity and unsandboxed terminals are unaffected.

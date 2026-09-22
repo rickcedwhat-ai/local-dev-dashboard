@@ -59,17 +59,147 @@
       font-weight: 600;
     }
 
-    .title-group p {
-      color: var(--muted);
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
     .header-actions {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
       flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .header-btn {
+      box-sizing: border-box;
+      min-width: 118px;
+      height: 32px;
+      padding: 0 12px;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .header-btn .chev {
+      font-size: 10px;
+      opacity: 0.7;
+      margin-left: 2px;
+    }
+
+    .header-menu {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .global-links {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .global-links:empty { display: none; }
+    .global-links-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 60;
+      min-width: 200px;
+      max-width: 320px;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      display: none;
+    }
+    .global-links-menu.open { display: block; }
+    .global-links-menu a,
+    .global-links-menu button.menu-action {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-radius: 6px;
+      text-decoration: none;
+      border: 0;
+      background: transparent;
+      color: var(--text-bright);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+    }
+    .global-links-menu a:hover,
+    .global-links-menu button.menu-action:hover {
+      background: #30363d;
+    }
+    .global-links-menu button.menu-action.primary { color: #3fb950; }
+    .global-links-menu button.menu-action.danger { color: #ff7b72; }
+    .global-links-menu a img {
+      width: 14px;
+      height: 14px;
+      flex: none;
+      border-radius: 3px;
+      object-fit: contain;
+      margin-top: 1px;
+    }
+    .global-links-menu a .title {
+      display: block;
+    }
+    .global-links-menu .hint {
+      display: block;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .settings-btn {
+      position: relative;
+    }
+    .settings-btn.has-notify-on::after {
+      content: '';
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #3fb950;
+      box-shadow: 0 0 0 2px #0d1117;
+    }
+
+    .settings-tabs {
+      display: flex;
+      gap: 2px;
+      margin: 0 0 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-tab {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 14px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .settings-tab:hover { color: var(--text-bright); }
+    .settings-tab.active {
+      color: var(--text-bright);
+      border-bottom-color: #58a6ff;
+    }
+    .settings-tab-pane[hidden] { display: none !important; }
+    .settings-tab-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .stats-badge {
@@ -79,31 +209,6 @@
       padding: 6px 14px;
       font-size: 13px;
       color: var(--text-bright);
-    }
-
-    .add-hint {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      background: #161b22;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 16px;
-      margin-bottom: 20px;
-    }
-
-    .add-hint strong {
-      display: block;
-      color: var(--text-bright);
-      font-size: 13px;
-      margin-bottom: 2px;
-    }
-
-    .add-hint span {
-      color: var(--muted);
-      font-size: 12px;
     }
 
     .projects-grid {
@@ -275,38 +380,57 @@
       display: none;
     }
 
-    /* Sticky CodeRabbit capacity banner (private vs OSS). */
-    .cr-banner-wrap {
+    /* Sticky banners (GitHub API throttle + CodeRabbit capacity). */
+    .sticky-banners {
       position: sticky;
       top: 0;
       z-index: 50;
       margin: -24px -24px 20px;
+    }
+
+    .api-banner-wrap,
+    .cr-banner-wrap {
       display: none;
     }
 
+    .api-banner-wrap.visible,
     .cr-banner-wrap.visible {
       display: block;
     }
 
+    .api-banner,
     .cr-banner {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 10px 24px;
-      background: linear-gradient(90deg, rgba(255, 107, 74, 0.18), rgba(210, 153, 34, 0.12));
-      border-bottom: 1px solid rgba(255, 107, 74, 0.4);
-      color: #ffb198;
       font-size: 13px;
     }
 
+    .cr-banner {
+      background: #3a1c16;
+      border-bottom: 1px solid #a8432a;
+      color: #ffb198;
+    }
+
+    .api-banner {
+      background: #2f2814;
+      border-bottom: 1px solid #8a6d1f;
+      color: #e3b341;
+    }
+
+    .api-banner .body,
     .cr-banner .body { flex: 1; min-width: 0; }
     .cr-banner strong { color: #ffd6c8; }
+    .api-banner strong { color: #ffe8a3; }
+    .api-banner .pills,
     .cr-banner .pills {
       display: inline-flex;
       gap: 6px;
       flex-wrap: wrap;
       margin-top: 4px;
     }
+    .api-banner .pills span,
     .cr-banner .pills span {
       font-family: var(--font-mono);
       font-size: 10px;
@@ -315,8 +439,11 @@
       border: 1px solid rgba(255, 255, 255, 0.15);
       background: rgba(0, 0, 0, 0.25);
     }
+    .api-banner .pills .ok,
     .cr-banner .pills .ok { color: #3fb950; border-color: rgba(46, 160, 67, 0.35); }
+    .api-banner .pills .bad,
     .cr-banner .pills .bad { color: #ffa657; border-color: rgba(255, 166, 87, 0.4); }
+    .api-banner button,
     .cr-banner button {
       background: rgba(0, 0, 0, 0.25);
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -579,6 +706,248 @@
     .project-card.ci-passing {
       border: 1.5px solid rgba(63, 185, 80, 0.65);
       box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.12);
+    }
+
+    /* Agent working: status strip (quiet; plays with CI borders). */
+    .project-card.agent-working {
+      position: relative;
+    }
+
+    .agent-strip {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 2px;
+      padding: 6px 9px;
+      border-radius: 6px;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.28);
+      color: #79b8ff;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    /* Still "working" but long enough that a glance is worth it. */
+    .agent-strip.linger {
+      background: rgba(210, 153, 34, 0.12);
+      border-color: rgba(210, 153, 34, 0.4);
+      color: #e3b341;
+    }
+
+    .agent-strip .icon {
+      width: 14px;
+      height: 14px;
+      flex: none;
+      color: #58a6ff;
+      animation: agent-dot 1.2s ease-in-out infinite;
+    }
+
+    .agent-strip.linger .icon {
+      color: #d29922;
+    }
+
+    .agent-strip .icon svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    .agent-strip .summary {
+      font-weight: 500;
+      color: #adbac7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .agent-strip.linger .summary {
+      color: #c9b44a;
+    }
+
+    .agent-strip .pr {
+      flex: none;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #79b8ff;
+      opacity: 0.9;
+    }
+
+    .agent-strip.linger .pr {
+      color: #e3b341;
+    }
+
+    /* --- CR Autofix (removable) --- */
+    .gh.autofixing,
+    .gh.reviewing-busy {
+      --gh-color: #e3b341;
+      color: #e3b341;
+      border-color: rgba(210, 153, 34, 0.45);
+      background: rgba(210, 153, 34, 0.14);
+    }
+
+    .gh.leftover {
+      --gh-color: #f85149;
+      color: #ff7b72;
+      border-color: rgba(248, 81, 73, 0.45);
+      background: rgba(248, 81, 73, 0.14);
+    }
+
+    .gh.delivery {
+      --gh-color: #ff7b72;
+      color: #ffb4ae;
+      border-color: rgba(248, 81, 73, 0.5);
+      background: rgba(248, 81, 73, 0.12);
+    }
+
+    .btn-cr {
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px 3px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1.5px solid rgba(210, 153, 34, 0.4);
+      background: rgba(210, 153, 34, 0.12);
+      color: #e3b341;
+      line-height: 1.35;
+    }
+    .btn-cr:hover:not(:disabled) {
+      background: rgba(210, 153, 34, 0.2);
+    }
+    .btn-cr:disabled {
+      opacity: 0.45;
+      cursor: default;
+      border-color: rgba(139, 148, 158, 0.35);
+      background: #21262d;
+      color: var(--muted);
+    }
+    .btn-cr .chev { font-size: 9px; opacity: 0.75; }
+    .btn-cr .rabbit { font-size: 12px; line-height: 1; }
+
+    .cr-wrap { position: relative; display: inline-flex; }
+    .cr-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 50;
+      min-width: 220px;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      display: none;
+    }
+    .cr-menu.open { display: block; }
+    .cr-menu-hint {
+      padding: 6px 9px 4px;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      text-align: left;
+    }
+    .cr-menu-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 6px;
+    }
+    .cr-menu-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 2px;
+      width: 100%;
+      text-align: left;
+      padding: 7px 9px;
+      border-radius: 6px;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .cr-menu-item:hover:not(:disabled) { background: #30363d; }
+    .cr-menu-item:disabled {
+      color: var(--muted);
+      cursor: default;
+      opacity: 0.55;
+    }
+    .cr-menu-item .title {
+      color: var(--text-bright);
+      text-align: left;
+      width: 100%;
+    }
+    .cr-menu-item.primary .title { color: #79b8ff; }
+    .cr-menu-item.danger .title { color: #ffb4ae; }
+    .cr-menu-item .desc {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--muted);
+      line-height: 1.35;
+      text-align: left;
+      width: 100%;
+    }
+
+    .agent-strip.autofixing,
+    .agent-strip.cr-reviewing {
+      background: rgba(210, 153, 34, 0.12);
+      border-color: rgba(210, 153, 34, 0.4);
+      color: #e3b341;
+    }
+    .agent-strip.autofixing .icon,
+    .agent-strip.cr-reviewing .icon,
+    .agent-strip.delivery .icon,
+    .agent-strip.leftover .icon {
+      width: auto;
+      height: auto;
+      font-size: 14px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .agent-strip.autofixing .summary,
+    .agent-strip.cr-reviewing .summary { color: #e3b341; }
+    .agent-strip.autofixing .pr,
+    .agent-strip.cr-reviewing .pr { color: #e3b341; }
+
+    .agent-strip.delivery {
+      background: rgba(248, 81, 73, 0.1);
+      border-color: rgba(248, 81, 73, 0.35);
+      color: #ffb4ae;
+    }
+    .agent-strip.delivery .summary { color: #ffb4ae; }
+    .agent-strip.delivery .pr { color: #ff8b82; }
+
+    .agent-strip.leftover {
+      background: rgba(248, 81, 73, 0.08);
+      border-color: rgba(248, 81, 73, 0.28);
+      color: #ffb4ae;
+    }
+    .agent-strip.leftover .summary { color: #ffb4ae; }
+    .agent-strip.leftover .pr { color: #ff8b82; }
+    /* --- end CR Autofix --- */
+
+    @keyframes agent-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.92); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .agent-strip .icon {
+        animation: none;
+      }
     }
 
     .project-link.more {
@@ -906,21 +1275,41 @@
     .settings-modal {
       background: #161b22;
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       width: 100%;
       max-width: 560px;
       max-height: min(86vh, 760px);
       display: flex;
       flex-direction: column;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+      color-scheme: dark;
+    }
+
+    #global-settings-modal .settings-modal {
+      max-width: 520px;
     }
 
     .settings-body {
-      padding: 16px 20px 20px;
+      padding: 12px 20px 20px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 14px;
+    }
+
+    .settings-hint-line {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 4px;
+      line-height: 1.45;
+    }
+    .settings-hint-line code {
+      font-size: 11px;
+      color: #8b949e;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 1px 5px;
     }
 
     .settings-section-title {
@@ -948,37 +1337,83 @@
       color: var(--muted);
     }
 
+    .settings-modal input[type="text"],
+    .settings-modal input[type="url"],
+    .settings-modal input[type="number"],
+    .settings-modal select,
     .form-row input,
-    .form-row select {
+    .form-row select,
+    .link-edit-row input,
+    .link-edit-row select {
       background: #0d1117;
-      border: 1px solid var(--border);
+      border: 1px solid #30363d;
       border-radius: 6px;
       color: var(--text-bright);
       padding: 8px 10px;
       font-size: 13px;
       font-family: inherit;
+      box-sizing: border-box;
     }
 
+    .settings-modal input::placeholder,
+    .link-edit-row input::placeholder {
+      color: #6e7681;
+    }
+
+    .settings-modal input:focus,
+    .settings-modal select:focus,
     .form-row input:focus,
-    .form-row select:focus {
+    .form-row select:focus,
+    .link-edit-row input:focus,
+    .link-edit-row select:focus {
       outline: none;
       border-color: #58a6ff;
+      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
     }
 
     .link-edit-row {
-      border: 1px solid var(--border);
+      border: 1px solid #30363d;
       border-radius: 8px;
-      padding: 8px;
+      padding: 12px;
       display: grid;
-      gap: 6px;
+      gap: 10px;
       background: #0d1117;
+    }
+
+    .link-edit-row.link-icon-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 10px 12px;
     }
 
     .link-edit-top,
     .link-edit-bottom {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       align-items: center;
+    }
+
+    .link-edit-row .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+    .link-edit-row .field.label-field {
+      flex: 0 0 140px;
+    }
+    .link-edit-row .field > span {
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #8b949e;
+    }
+    .link-edit-row .field input,
+    .link-edit-row .field select {
+      width: 100%;
     }
 
     .link-edit-row input.link-label {
@@ -1000,6 +1435,11 @@
       font-size: 11px;
       color: var(--muted);
       flex: none;
+    }
+
+    .link-edit-row .row-remove {
+      align-self: flex-end;
+      margin-bottom: 1px;
     }
 
     .btn-mini {
@@ -1208,36 +1648,701 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       z-index: 200;
     }
+
+    .notify-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #21262d;
+    }
+    .notify-row:last-child { border-bottom: 0; }
+    .notify-row input[type="checkbox"] {
+      margin-top: 3px;
+      flex: none;
+    }
+    .notify-row .notify-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .notify-row .notify-copy strong {
+      font-size: 13px;
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+    .notify-row .notify-copy span {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .notify-perm {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .notify-perm.ok { color: #3fb950; }
+    .notify-perm.warn { color: #e3b341; }
+    .notify-perm.bad { color: #ff7b72; }
+
+    .notify-event-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 0;
+      border-bottom: 1px solid #21262d;
+    }
+    .notify-event-row:last-child { border-bottom: 0; }
+    .notify-event-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .notify-sound-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 26px;
+      flex-wrap: wrap;
+    }
+    .notify-sound-row label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .notify-sound-row select {
+      flex: 1;
+      min-width: 140px;
+      max-width: 220px;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      color: var(--text-bright);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+    .notify-sound-row .btn-play-sound {
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .notify-vol-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      padding-left: 26px;
+    }
+    .notify-vol-row input[type="range"] { flex: 1; max-width: 200px; }
+    .notify-vol-row .vol-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #79b8ff;
+      min-width: 2.5em;
+    }
+
+    .mocks-modal {
+      width: min(480px, 94vw);
+      max-height: 85vh;
+      overflow: auto;
+    }
+    .mocks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mocks-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0d1117;
+    }
+    .mocks-item .copy {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .mocks-item .copy strong {
+      font-size: 13px;
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+    .mocks-item .copy span {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .mocks-item a.btn-open {
+      flex: none;
+      text-decoration: none;
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text-bright);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .mocks-item a.btn-open:hover {
+      border-color: #58a6ff;
+      color: #79b8ff;
+    }
+    .mocks-empty, .mocks-hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .mocks-hint code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: #21262d;
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #79b8ff;
+    }
+
+    /* ===== Sidebar + detail shell (layout mock → live) ===== */
+    body { padding: 16px 16px 28px; }
+    .container { max-width: 1400px; }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 228px minmax(0, 1fr);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #010409;
+      overflow: hidden;
+      min-height: min(820px, calc(100vh - 160px));
+    }
+
+    .side {
+      border-right: 1px solid var(--border);
+      background: #0d1117;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .side-head {
+      padding: 12px 12px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .side-head .brand {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-bright);
+    }
+    .side-head .meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+      font-family: var(--font-mono);
+    }
+    .side-list {
+      padding: 8px;
+      flex: 1;
+      overflow: auto;
+    }
+    .side-item {
+      width: 100%;
+      text-align: left;
+      background: #0d1117;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      color: inherit;
+      margin-bottom: 6px;
+      font: inherit;
+      transition: background 0.12s;
+    }
+    .side-item:hover { background: #12181f; }
+    .side-item.active {
+      background: #1c2b3f;
+      outline: 2px solid #58a6ff;
+      outline-offset: 0;
+      box-shadow: none;
+    }
+    .side-item.dragging { opacity: 0.45; }
+    .side-item.drag-over { outline: 1px dashed var(--primary); outline-offset: 1px; }
+    .side-item.ci-passing {
+      border: 1.5px solid rgba(63, 185, 80, 0.65);
+    }
+    .side-item.active.ci-passing {
+      background: #1c2b3f;
+      border-color: rgba(63, 185, 80, 0.65);
+      outline: 2px solid #58a6ff;
+    }
+    .side-item.ci-failing,
+    .side-item.ci-running {
+      border: 1.5px solid transparent;
+      background:
+        linear-gradient(#0d1117, #0d1117) padding-box,
+        linear-gradient(#30363d, #30363d) border-box;
+    }
+    .side-item.active.ci-failing,
+    .side-item.active.ci-running {
+      background:
+        linear-gradient(#1c2b3f, #1c2b3f) padding-box,
+        linear-gradient(#30363d, #30363d) border-box;
+      outline: 2px solid #58a6ff;
+      box-shadow: none;
+    }
+    .side-item .n {
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--text-bright);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .side-item .n .av {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      object-fit: cover;
+      flex: none;
+      background: #21262d;
+      border: 1px solid var(--border);
+    }
+    .side-item .n .av-fallback {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text-bright);
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      background: #0d1117;
+    }
+    .main-empty {
+      margin: auto;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 40px;
+    }
+    .main-filled {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    .main-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .main-title-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .main-title-row .project-avatar,
+    .main-title-row .project-avatar-fallback {
+      width: 36px;
+      height: 36px;
+    }
+    .main-top h2 {
+      font-size: 18px;
+      color: var(--text-bright);
+      font-weight: 650;
+      line-height: 1.25;
+    }
+    .main-top .path {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+    .main-top .git { margin-top: 8px; }
+    .main-top .actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .main-top .btn {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .main-top .btn:hover { border-color: #484f58; color: var(--text-bright); }
+    .main .body {
+      padding: 14px 16px 18px;
+      flex: 1;
+      overflow: auto;
+    }
+
+    .org-split {
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .org-stack { display: flex; flex-direction: column; gap: 12px; }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .panel-h {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .panel-h h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .panel-h .count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .panel-empty {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 6px 0;
+    }
+
+    .pr-list { display: flex; flex-direction: column; gap: 8px; }
+    .pr-card {
+      position: relative;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: #0d1117;
+      transition: border-color 0.12s;
+    }
+    .pr-card:hover { border-color: #484f58; }
+    .pr-card.sel {
+      outline: 1px solid rgba(88, 166, 255, 0.35);
+      outline-offset: 1px;
+    }
+    .pr-card.waiting .pr-id::after {
+      content: 'waiting';
+      margin-left: 8px;
+      font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #e3b341;
+      border: 1px solid rgba(227, 179, 65, 0.45);
+      background: rgba(187, 128, 9, 0.15);
+      border-radius: 999px;
+      padding: 1px 7px;
+      vertical-align: 1px;
+    }
+    .pr-card.ci-passing {
+      border: 1.5px solid rgba(63, 185, 80, 0.65);
+      box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.12);
+    }
+    .pr-card.ci-failing,
+    .pr-card.ci-running {
+      border: 1.5px solid transparent;
+      background:
+        linear-gradient(#0d1117, #0d1117) padding-box,
+        linear-gradient(#30363d, #30363d) border-box;
+    }
+    .pr-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .pr-id {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .pr-title {
+      font-size: 13px;
+      color: var(--text-bright);
+      font-weight: 600;
+      margin-top: 2px;
+      line-height: 1.35;
+    }
+    .pr-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .pr-foot {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .pr-author {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pr-author img {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #21262d;
+      border: 1px solid var(--border);
+    }
+    .pr-author .login {
+      color: #adbac7;
+      font-weight: 600;
+    }
+    .pr-ci {
+      color: var(--muted);
+    }
+    .pr-card .pr-body {
+      min-width: 0;
+      flex: 1;
+      cursor: pointer;
+    }
+    .pr-card .cr-wrap {
+      flex: none;
+      align-self: flex-start;
+    }
+    .pr-card .gh {
+      flex: none;
+      white-space: nowrap;
+      max-width: none;
+    }
+    .pr-card .gh .label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .pr-card .gh .rabbit {
+      font-size: 12px;
+      line-height: 1;
+      flex: none;
+    }
+
+    .gh .chev {
+      font-size: 9px;
+      opacity: 0.75;
+      margin-left: 1px;
+      position: relative;
+      z-index: 1;
+      flex: none;
+    }
+    .gh.leftover {
+      animation: gh-heartbeat 1.35s ease-in-out infinite;
+    }
+    .gh.leftover .badge { background: #ff7b72; color: #0d1117; }
+
+    .links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+      gap: 8px;
+    }
+    .link-card {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      text-decoration: none;
+      color: inherit;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 92px;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      width: 100%;
+    }
+    .link-card:hover {
+      border-color: #484f58;
+      background: #12181f;
+    }
+    .link-card .top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-start;
+      width: 100%;
+    }
+    .link-card .icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #0d1117;
+      flex: none;
+      overflow: hidden;
+      background: #21262d;
+      border: 1px solid var(--border);
+    }
+    .link-card .icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .link-card .icon img.brand {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+    }
+    .link-card .icon.brand-pad {
+      background: #161b22;
+    }
+    .link-card .label {
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--text-bright);
+      text-align: left;
+    }
+    .link-card .space-row {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      width: 100%;
+    }
+    .link-card .pill.space {
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      box-sizing: border-box;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 0 8px;
+      border-radius: 999px;
+      border: 1px solid #484f58;
+      background: #21262d;
+      color: #c9d1d9;
+      line-height: 1;
+    }
+
+    .panel .services-list {
+      gap: 8px;
+    }
+    .panel .service-row {
+      padding: 12px 14px;
+    }
+
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; min-height: 0; }
+      .side {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+        max-height: 220px;
+      }
+      .org-split { grid-template-columns: 1fr; }
+    }
+
+    .projects-grid { display: none; }
+
   </style>
 </head>
 <body>
-  <div class="cr-banner-wrap" id="cr-banner-wrap">
-    <div class="cr-banner" id="cr-banner"></div>
+  <div class="sticky-banners">
+    <div class="api-banner-wrap" id="api-banner-wrap">
+      <div class="api-banner" id="api-banner"></div>
+    </div>
+    <div class="cr-banner-wrap" id="cr-banner-wrap">
+      <div class="cr-banner" id="cr-banner"></div>
+    </div>
   </div>
   <div class="container">
     <header>
       <div class="title-group">
         <h1>Local Dev Dashboard</h1>
-        <p>Real-time port monitor, zombie process cleaner, and process control · <span style="color:#3fb950">Green</span> = started here · <span style="color:#58a6ff">Blue</span> = already running elsewhere</p>
       </div>
       <div class="header-actions">
-        <div id="stats" class="stats-badge">Checking servers...</div>
-        <button onclick="copyAgentPrompt()" title="Copy a prompt you can paste into an agent in any project">Copy agent prompt</button>
-        <button class="btn-primary" onclick="restartAll()" title="Relaunch all configured services under dashboard management">Restart All</button>
-        <button class="btn-danger" onclick="stopAll()" title="Stop all services and free all ports">Stop All</button>
-        <button onclick="fetchStatus()">Refresh</button>
+        <button type="button" class="header-btn" onclick="openMocksModal()" title="Exploratory UI mocks">Mockups</button>
+        <button type="button" class="header-btn" onclick="copyAgentPrompt()" title="Copy a prompt you can paste into an agent in any project">Copy Prompt</button>
+        <div class="header-menu" id="servers-menu-wrap">
+          <button type="button" class="header-btn" onclick="toggleServersMenu(event)" title="Server actions">
+            Servers<span class="chev">▾</span>
+          </button>
+          <div class="global-links-menu" id="servers-menu">
+            <button type="button" class="menu-action primary" onclick="runServersAction(event, 'restart')">Restart All</button>
+            <button type="button" class="menu-action danger" onclick="runServersAction(event, 'stop')">Stop All</button>
+          </div>
+        </div>
+        <div class="global-links" id="global-links" aria-label="Global links"></div>
+        <button type="button" class="header-btn settings-btn" id="settings-btn" onclick="openGlobalSettings()" title="Global settings">Settings</button>
       </div>
     </header>
 
-    <div id="add-hint" class="add-hint">
-      <div>
-        <strong>Add a project from Cursor / Antigravity</strong>
-        <span>Paste the agent prompt into a chat in that project (or just ask to “hook this into my dev dashboard”).</span>
-      </div>
-      <button onclick="copyAgentPrompt()">Copy agent prompt</button>
+    <div class="shell" id="shell">
+      <aside class="side">
+        <div class="side-head">
+          <div class="brand">Projects</div>
+        </div>
+        <div class="side-list" id="side-list"></div>
+      </aside>
+      <section class="main" id="main-pane">
+        <div class="main-empty" id="main-empty">Select a project</div>
+        <div class="main-filled" id="main-filled" hidden>
+          <div class="main-top">
+            <div class="main-top-left">
+              <div class="main-title-row">
+                <div id="main-avatar"></div>
+                <div>
+                  <h2 id="main-name">—</h2>
+                  <div class="path" id="main-path"></div>
+                </div>
+              </div>
+              <div class="git" id="main-git"></div>
+              <div id="main-agent"></div>
+              <div id="main-commits"></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" id="main-settings" title="Project settings">Settings</button>
+            </div>
+          </div>
+          <div class="body" id="main-body"></div>
+        </div>
+      </section>
     </div>
-
-    <div id="projects-container" class="projects-grid"></div>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -1252,6 +2357,159 @@
         </div>
       </div>
       <div id="terminal" class="terminal-body"></div>
+    </div>
+  </div>
+
+  <div id="mocks-modal" class="modal-backdrop" onclick="closeMocksModal(event)">
+    <div class="settings-modal mocks-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">Mockups</div>
+        <div class="modal-actions">
+          <button onclick="closeMocksModal()">Close</button>
+        </div>
+      </div>
+      <div class="settings-body">
+        <div id="mocks-list" class="mocks-list"></div>
+        <div class="mocks-hint">Catalog: <code>public/mocks/catalog.json</code> · drop shipped ideas when done</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="global-settings-modal" class="modal-backdrop" onclick="closeGlobalSettings(event)">
+    <div class="settings-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">Settings</div>
+        <div class="modal-actions">
+          <button onclick="closeGlobalSettings()">Cancel</button>
+          <button class="btn-primary" onclick="saveGlobalSettings()">Save</button>
+        </div>
+      </div>
+      <div class="settings-body">
+        <div class="settings-tabs" role="tablist">
+          <button type="button" class="settings-tab active" data-tab="links" onclick="setGlobalSettingsTab('links')">Links</button>
+          <button type="button" class="settings-tab" data-tab="icons" onclick="setGlobalSettingsTab('icons')">Icons</button>
+          <button type="button" class="settings-tab" data-tab="notifications" onclick="setGlobalSettingsTab('notifications')">Notifications</button>
+        </div>
+
+        <div class="settings-tab-pane" data-pane="links">
+          <p class="settings-hint-line">
+            Header shortcuts (billing, usage, consoles). Saved in <code>projects.json</code>.
+          </p>
+          <div id="global-links-edit" class="form-grid"></div>
+          <div style="margin-top:4px">
+            <button type="button" onclick="addGlobalLinkRow()">+ Add link</button>
+          </div>
+        </div>
+
+        <div class="settings-tab-pane" data-pane="icons" hidden>
+          <p class="settings-hint-line">
+            Map a link label (e.g. <code>github</code>) to an icon URL. Saved to <code>link-icons.json</code>.
+          </p>
+          <div id="global-link-icons" class="form-grid"></div>
+          <div style="margin-top:4px">
+            <button type="button" onclick="addLinkIconRow()">+ Add icon</button>
+          </div>
+        </div>
+
+        <div class="settings-tab-pane" data-pane="notifications" hidden>
+<div class="settings-section-title">Delivery</div>
+        <div class="notify-row">
+          <input id="notify-enabled" type="checkbox" onchange="onNotifyMasterToggle()">
+          <div class="notify-copy">
+            <strong>Enable notifications</strong>
+            <span>Only fires on important state changes — not every status poll.</span>
+          </div>
+        </div>
+        <div class="notify-row">
+          <input id="notify-mine-only" type="checkbox">
+          <div class="notify-copy">
+            <strong>Only my PRs</strong>
+            <span>Optional: skip CR/CI alerts for collaborators’ pull requests.</span>
+          </div>
+        </div>
+        <div class="notify-row">
+          <input id="notify-browser" type="checkbox">
+          <div class="notify-copy">
+            <strong>Browser notifications</strong>
+            <span>Native OS alerts when the tab is in the background (needs permission).</span>
+          </div>
+        </div>
+        <div class="notify-row">
+          <input id="notify-sound" type="checkbox">
+          <div class="notify-copy">
+            <strong>Play sounds</strong>
+            <span>Chime in this tab when something fires. Pick a sound per event below.</span>
+          </div>
+        </div>
+        <div class="notify-vol-row" id="notify-vol-row">
+          <label for="notify-volume">Volume</label>
+          <input id="notify-volume" type="range" min="0.1" max="1" step="0.05" value="0.55" oninput="document.getElementById('notify-vol-val').textContent = Number(this.value).toFixed(2)">
+          <span class="vol-val" id="notify-vol-val">0.55</span>
+        </div>
+        <div id="notify-perm" class="notify-perm"></div>
+
+        <div class="settings-section-title" style="margin-top:16px">Events &amp; sounds</div>
+        <div class="notify-event-row">
+          <div class="notify-event-top">
+            <input id="notify-cr-actionable" type="checkbox">
+            <div class="notify-copy">
+              <strong>CR actionable</strong>
+              <span>CodeRabbit left unresolved findings.</span>
+            </div>
+          </div>
+          <div class="notify-sound-row">
+            <label for="notify-sound-cr-actionable">Sound</label>
+            <select id="notify-sound-cr-actionable"></select>
+            <button type="button" class="btn-play-sound" onclick="previewNotifySound('crActionable')">Play</button>
+          </div>
+        </div>
+        <div class="notify-event-row">
+          <div class="notify-event-top">
+            <input id="notify-cr-done" type="checkbox">
+            <div class="notify-copy">
+              <strong>CR Autofix / Review finished</strong>
+              <span>Busy strip clears to clear, leftover, or delivery blocked.</span>
+            </div>
+          </div>
+          <div class="notify-sound-row">
+            <label for="notify-sound-cr-done">Sound</label>
+            <select id="notify-sound-cr-done"></select>
+            <button type="button" class="btn-play-sound" onclick="previewNotifySound('crDone')">Play</button>
+          </div>
+        </div>
+        <div class="notify-event-row">
+          <div class="notify-event-top">
+            <input id="notify-ci-failing" type="checkbox">
+            <div class="notify-copy">
+              <strong>CI failing</strong>
+              <span>Open PR checks go red.</span>
+            </div>
+          </div>
+          <div class="notify-sound-row">
+            <label for="notify-sound-ci-failing">Sound</label>
+            <select id="notify-sound-ci-failing"></select>
+            <button type="button" class="btn-play-sound" onclick="previewNotifySound('ciFailing')">Play</button>
+          </div>
+        </div>
+        <div class="notify-event-row">
+          <div class="notify-event-top">
+            <input id="notify-agent-linger" type="checkbox">
+            <div class="notify-copy">
+              <strong>Agent lingering</strong>
+              <span>Agent still marked working after ~2 minutes.</span>
+            </div>
+          </div>
+          <div class="notify-sound-row">
+            <label for="notify-sound-agent-linger">Sound</label>
+            <select id="notify-sound-agent-linger"></select>
+            <button type="button" class="btn-play-sound" onclick="previewNotifySound('agentLinger')">Play</button>
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <button type="button" onclick="testNotify()">Send test notification</button>
+        </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1311,8 +2569,15 @@
     let eventSource = null;
     const pendingStarts = new Set();
     let lastProjects = [];
+    // --- CR Autofix (removable) ---
+    let crAutofixEnabled = true;
+    const pendingCrAction = new Set(); // projectId or projectId:pr with in-flight POST
+    let openCrMenuId = null; // `${projectId}:${prNumber}`
+    // --- end CR Autofix ---
     let lastRateLimit = { private: null, oss: null };
+    let lastApiLimit = { restUntil: null, graphqlUntil: null };
     let crBannerDismissKey = null;
+    let apiBannerDismissKey = null;
     let cachedAgentPrompt = null;
 
     // Icons from Lucide (ISC), kept on a 24 grid at stroke-width 2 so the
@@ -1322,6 +2587,7 @@
     const ICON_STOP = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>`;
     const ICON_RESTART = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>`;
     const ICON_SETTINGS = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 5.5A2.5 2.5 0 1 1 8 10.5 2.5 2.5 0 0 1 8 5.5zm6.1 2.1-.9-.3a4.8 4.8 0 0 0-.4-1l.6-.8a.5.5 0 0 0-.1-.7l-1.2-1.2a.5.5 0 0 0-.7-.1l-.8.6a4.8 4.8 0 0 0-1-.4l-.3-.9A.5.5 0 0 0 8.8 2H7.2a.5.5 0 0 0-.5.4l-.3.9a4.8 4.8 0 0 0-1 .4l-.8-.6a.5.5 0 0 0-.7.1L2.7 4.4a.5.5 0 0 0-.1.7l.6.8a4.8 4.8 0 0 0-.4 1l-.9.3a.5.5 0 0 0-.4.5v1.6c0 .2.2.5.4.5l.9.3c.1.3.2.7.4 1l-.6.8a.5.5 0 0 0 .1.7l1.2 1.2c.2.2.5.2.7.1l.8-.6c.3.2.7.3 1 .4l.3.9c.1.2.3.4.5.4h1.6c.2 0 .5-.2.5-.4l.3-.9c.3-.1.7-.2 1-.4l.8.6c.2.1.5.1.7-.1l1.2-1.2a.5.5 0 0 0 .1-.7l-.6-.8c.2-.3.3-.7.4-1l.9-.3a.5.5 0 0 0 .4-.5V8.1a.5.5 0 0 0-.4-.5z"/></svg>`;
+    const ICON_BOT = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
     const ORDER_KEY = 'dev-dashboard-project-order';
     let dragProjectId = null;
     let settingsProjectId = null;
@@ -1353,45 +2619,68 @@
     }
 
     function currentVisibleOrder() {
-      return [...document.querySelectorAll('.project-card[data-project-id]')]
+      return [...document.querySelectorAll('.side-item[data-project-id]')]
         .map((el) => el.dataset.projectId);
     }
 
     function bindCardDragHandlers() {
-      const cards = document.querySelectorAll('.project-card[data-project-id]');
+      const cards = document.querySelectorAll('.side-item[data-project-id]');
       for (const card of cards) {
-        card.addEventListener('dragstart', (e) => {
-          if (e.target.closest('a, button, input, textarea')) {
+        // Native draggable on <button> eats clicks in Chromium. Use a move
+        // threshold instead so a normal click always selects the project.
+        card.removeAttribute('draggable');
+        let pointerId = null;
+        let startX = 0;
+        let startY = 0;
+        let dragging = false;
+        const threshold = 6;
+
+        card.addEventListener('click', (e) => {
+          if (dragging) {
             e.preventDefault();
+            e.stopPropagation();
+            dragging = false;
             return;
           }
+          const id = card.dataset.projectId;
+          if (id) selectProject(id);
+        });
+
+        card.addEventListener('pointerdown', (e) => {
+          if (e.button != null && e.button !== 0) return;
+          pointerId = e.pointerId;
+          startX = e.clientX;
+          startY = e.clientY;
+          dragging = false;
+          try { card.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+        });
+
+        card.addEventListener('pointermove', (e) => {
+          if (pointerId !== e.pointerId || dragging) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          if (Math.hypot(dx, dy) < threshold) return;
+          dragging = true;
           dragProjectId = card.dataset.projectId;
           card.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', dragProjectId);
+          card.setAttribute('draggable', 'true');
+          // Kick HTML5 DnD after threshold — requires a fresh dragstart, so
+          // fall back to manual reorder on pointerup over another card.
         });
-        card.addEventListener('dragend', () => {
-          card.classList.remove('dragging');
-          document.querySelectorAll('.project-card.drag-over').forEach((el) => el.classList.remove('drag-over'));
-          dragProjectId = null;
-        });
-        card.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          if (card.dataset.projectId !== dragProjectId) {
-            card.classList.add('drag-over');
-          }
-        });
-        card.addEventListener('dragleave', () => {
-          card.classList.remove('drag-over');
-        });
-        card.addEventListener('drop', (e) => {
-          e.preventDefault();
-          card.classList.remove('drag-over');
-          const fromId = dragProjectId || e.dataTransfer.getData('text/plain');
-          const toId = card.dataset.projectId;
-          if (!fromId || !toId || fromId === toId) return;
 
+        card.addEventListener('pointerup', (e) => {
+          if (pointerId !== e.pointerId) return;
+          pointerId = null;
+          card.removeAttribute('draggable');
+          if (!dragging) return;
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          const target = el && el.closest('.side-item[data-project-id]');
+          const fromId = dragProjectId;
+          const toId = target && target.dataset.projectId;
+          card.classList.remove('dragging');
+          document.querySelectorAll('.side-item.drag-over').forEach((n) => n.classList.remove('drag-over'));
+          dragProjectId = null;
+          if (!fromId || !toId || fromId === toId) return;
           const order = currentVisibleOrder();
           const fromIdx = order.indexOf(fromId);
           const toIdx = order.indexOf(toId);
@@ -1401,15 +2690,616 @@
           saveProjectOrder(order);
           if (lastProjects.length) renderProjects(lastProjects);
         });
+
+        card.addEventListener('pointercancel', () => {
+          pointerId = null;
+          dragging = false;
+          card.classList.remove('dragging');
+          card.removeAttribute('draggable');
+          dragProjectId = null;
+        });
+
+        card.addEventListener('pointerenter', (e) => {
+          if (!dragProjectId || dragProjectId === card.dataset.projectId) return;
+          if (e.buttons !== 1) return;
+          card.classList.add('drag-over');
+        });
+        card.addEventListener('pointerleave', () => {
+          card.classList.remove('drag-over');
+        });
       }
     }
 
-    function showToast(msg) {
+    function showToast(msg, ms = 3000) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.style.display = 'block';
-      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => { toast.style.display = 'none'; }, ms);
     }
+
+    // --- Notifications ---
+    const NOTIFY_KEY = 'dev-dashboard-notify-v1';
+    const NOTIFY_SOUND_OPTIONS = [
+      { id: 'knock', name: 'Knock' },
+      { id: 'ping-double', name: 'Double ping' },
+      { id: 'glass', name: 'Glass tap' },
+      { id: 'marimba', name: 'Marimba' },
+      { id: 'alarm-soft', name: 'Soft alarm' },
+      { id: 'chord', name: 'Major chord' },
+      { id: 'radar', name: 'Radar blip' },
+      { id: 'bubble', name: 'Bubble up' },
+      { id: 'low-boop', name: 'Low boop' },
+      { id: 'current', name: 'Quiet blip (old)' }
+    ];
+    const NOTIFY_DEFAULTS = {
+      enabled: false,
+      browser: true,
+      sound: true,
+      volume: 0.55,
+      mineOnly: false,
+      crActionable: true,
+      crDone: true,
+      ciFailing: true,
+      agentLinger: false,
+      soundCrActionable: 'ping-double',
+      soundCrDone: 'glass',
+      soundCiFailing: 'alarm-soft',
+      soundAgentLinger: 'marimba'
+    };
+    const NOTIFY_SOUND_SELECTS = {
+      crActionable: 'notify-sound-cr-actionable',
+      crDone: 'notify-sound-cr-done',
+      ciFailing: 'notify-sound-ci-failing',
+      agentLinger: 'notify-sound-agent-linger'
+    };
+    const NOTIFY_SOUND_PREF_KEYS = {
+      crActionable: 'soundCrActionable',
+      crDone: 'soundCrDone',
+      ciFailing: 'soundCiFailing',
+      agentLinger: 'soundAgentLinger'
+    };
+    let notifyPrefs = { ...NOTIFY_DEFAULTS };
+    let notifySnapshot = null; // first poll baselines without firing
+    let notifyAudioCtx = null;
+    let notifySoundSelectsReady = false;
+    let githubLogin = null;
+    const CR_BUSY = new Set(['autofixing', 'reviewing']);
+    const CR_DONE = new Set(['clear', 'leftover', 'delivery']);
+    // REST often parks CR as "pending" between GraphQL ticks — ignore that flap for alerts.
+    const CR_NOTIFY_TRANSIENT = new Set(['pending']);
+
+    const PR_MARKS_KEY = 'dev-dashboard-pr-marks-v1';
+    let prMarks = {};
+
+    function loadPrMarks() {
+      try {
+        const raw = localStorage.getItem(PR_MARKS_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        prMarks = parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        prMarks = {};
+      }
+    }
+
+    function savePrMarks() {
+      try {
+        localStorage.setItem(PR_MARKS_KEY, JSON.stringify(prMarks));
+      } catch { /* ignore */ }
+    }
+
+    function prMarkKey(projectId, prNumber) {
+      return `${projectId}#${prNumber}`;
+    }
+
+    function isWaitingOnAuthor(projectId, prNumber) {
+      return !!prMarks[prMarkKey(projectId, prNumber)]?.waiting;
+    }
+
+    function setWaitingOnAuthor(projectId, prNumber, waiting) {
+      const key = prMarkKey(projectId, prNumber);
+      if (waiting) {
+        prMarks[key] = { waiting: true, at: new Date().toISOString() };
+      } else {
+        delete prMarks[key];
+      }
+      savePrMarks();
+    }
+
+    function loadNotifyPrefs() {
+      try {
+        const raw = localStorage.getItem(NOTIFY_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        notifyPrefs = { ...NOTIFY_DEFAULTS, ...(parsed && typeof parsed === 'object' ? parsed : {}) };
+        if (!Number.isFinite(Number(notifyPrefs.volume))) notifyPrefs.volume = NOTIFY_DEFAULTS.volume;
+        // One-time: default back to notifying on all PRs (Only my PRs is opt-in).
+        if (!localStorage.getItem('dev-dashboard-notify-mine-opt-in')) {
+          notifyPrefs.mineOnly = false;
+          localStorage.setItem('dev-dashboard-notify-mine-opt-in', '1');
+          localStorage.setItem(NOTIFY_KEY, JSON.stringify(notifyPrefs));
+        }
+      } catch {
+        notifyPrefs = { ...NOTIFY_DEFAULTS };
+      }
+      refreshNotifyBtn();
+    }
+
+    function saveNotifyPrefsToStore() {
+      localStorage.setItem(NOTIFY_KEY, JSON.stringify(notifyPrefs));
+      refreshNotifyBtn();
+    }
+
+    function refreshNotifyBtn() {
+      const btn = document.getElementById('settings-btn');
+      if (!btn) return;
+      btn.classList.toggle('has-notify-on', !!notifyPrefs.enabled);
+    }
+
+    function notifyPermissionLabel() {
+      if (!('Notification' in window)) return { text: 'Browser notifications unsupported here', cls: 'bad' };
+      if (Notification.permission === 'granted') return { text: 'Browser permission: granted', cls: 'ok' };
+      if (Notification.permission === 'denied') return { text: 'Browser permission: denied — enable in site settings', cls: 'bad' };
+      return { text: 'Browser permission: not requested yet', cls: 'warn' };
+    }
+
+    function refreshNotifyPermUi() {
+      const el = document.getElementById('notify-perm');
+      if (!el) return;
+      const { text, cls } = notifyPermissionLabel();
+      el.className = `notify-perm ${cls}`;
+      el.textContent = text;
+    }
+
+    function ensureNotifySoundSelects() {
+      if (notifySoundSelectsReady) return;
+      const opts = NOTIFY_SOUND_OPTIONS.map(
+        (s) => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`
+      ).join('');
+      for (const selId of Object.values(NOTIFY_SOUND_SELECTS)) {
+        const el = document.getElementById(selId);
+        if (el) el.innerHTML = opts;
+      }
+      notifySoundSelectsReady = true;
+    }
+
+    function fillNotifyForm() {
+      ensureNotifySoundSelects();
+      const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.checked = !!val;
+      };
+      set('notify-enabled', notifyPrefs.enabled);
+      set('notify-mine-only', notifyPrefs.mineOnly);
+      set('notify-browser', notifyPrefs.browser);
+      set('notify-sound', notifyPrefs.sound);
+      const vol = document.getElementById('notify-volume');
+      const volVal = document.getElementById('notify-vol-val');
+      if (vol) vol.value = String(notifyPrefs.volume ?? 0.55);
+      if (volVal) volVal.textContent = Number(notifyPrefs.volume ?? 0.55).toFixed(2);
+      set('notify-cr-actionable', notifyPrefs.crActionable);
+      set('notify-cr-done', notifyPrefs.crDone);
+      set('notify-ci-failing', notifyPrefs.ciFailing);
+      set('notify-agent-linger', notifyPrefs.agentLinger);
+      for (const [eventKey, selId] of Object.entries(NOTIFY_SOUND_SELECTS)) {
+        const prefKey = NOTIFY_SOUND_PREF_KEYS[eventKey];
+        const el = document.getElementById(selId);
+        if (el) el.value = notifyPrefs[prefKey] || NOTIFY_DEFAULTS[prefKey];
+      }
+      refreshNotifyPermUi();
+    }
+
+    function openNotifyModal() {
+      openGlobalSettings('notifications');
+    }
+
+    function closeNotifyModal() {
+      /* notifications live in Settings now */
+    }
+
+    async function onNotifyMasterToggle() {
+      const on = document.getElementById('notify-enabled').checked;
+      if (on && document.getElementById('notify-browser').checked) {
+        await ensureNotifyPermission();
+      }
+      refreshNotifyPermUi();
+    }
+
+    async function ensureNotifyPermission() {
+      if (!('Notification' in window)) return false;
+      if (Notification.permission === 'granted') return true;
+      if (Notification.permission === 'denied') return false;
+      try {
+        const result = await Notification.requestPermission();
+        refreshNotifyPermUi();
+        return result === 'granted';
+      } catch {
+        return false;
+      }
+    }
+
+    function readNotifySoundFromModal(eventKey) {
+      const selId = NOTIFY_SOUND_SELECTS[eventKey];
+      const el = document.getElementById(selId);
+      const fallback = NOTIFY_DEFAULTS[NOTIFY_SOUND_PREF_KEYS[eventKey]];
+      return el?.value || fallback;
+    }
+
+    async function applyNotifySettingsFromForm({ toast = true } = {}) {
+      notifyPrefs = {
+        enabled: !!document.getElementById('notify-enabled')?.checked,
+        mineOnly: !!document.getElementById('notify-mine-only')?.checked,
+        browser: !!document.getElementById('notify-browser')?.checked,
+        sound: !!document.getElementById('notify-sound')?.checked,
+        volume: Number(document.getElementById('notify-volume')?.value) || 0.55,
+        crActionable: !!document.getElementById('notify-cr-actionable')?.checked,
+        crDone: !!document.getElementById('notify-cr-done')?.checked,
+        ciFailing: !!document.getElementById('notify-ci-failing')?.checked,
+        agentLinger: !!document.getElementById('notify-agent-linger')?.checked,
+        soundCrActionable: readNotifySoundFromModal('crActionable'),
+        soundCrDone: readNotifySoundFromModal('crDone'),
+        soundCiFailing: readNotifySoundFromModal('ciFailing'),
+        soundAgentLinger: readNotifySoundFromModal('agentLinger')
+      };
+      if (notifyPrefs.enabled && notifyPrefs.browser) {
+        await ensureNotifyPermission();
+      }
+      saveNotifyPrefsToStore();
+      try {
+        if (notifyPrefs.mineOnly) localStorage.setItem('dev-dashboard-notify-mine-opt-in', '1');
+      } catch { /* ignore */ }
+      if (toast) showToast(notifyPrefs.enabled ? 'Notifications on' : 'Notifications off');
+    }
+
+    async function saveNotifySettings() {
+      await applyNotifySettingsFromForm({ toast: true });
+    }
+
+    function getNotifyAudioCtx() {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      if (!notifyAudioCtx) notifyAudioCtx = new Ctx();
+      if (notifyAudioCtx.state === 'suspended') notifyAudioCtx.resume();
+      return notifyAudioCtx;
+    }
+
+    function notifyTone(audioCtx, { type = 'sine', freq, freqEnd, start, dur, gain = 1 }, volume) {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, start);
+      if (freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), start + dur);
+      const peak = Math.max(0.0001, volume * gain);
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(peak, start + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(g);
+      g.connect(audioCtx.destination);
+      osc.start(start);
+      osc.stop(start + dur + 0.02);
+    }
+
+    function playNotifySoundId(soundId, volumeOverride) {
+      try {
+        const c = getNotifyAudioCtx();
+        if (!c) return;
+        const volume = Number.isFinite(volumeOverride)
+          ? volumeOverride
+          : (Number(notifyPrefs.volume) || 0.55);
+        const t = c.currentTime;
+        const tone = (opts) => notifyTone(c, opts, volume);
+        switch (soundId) {
+          case 'knock':
+            tone({ type: 'triangle', freq: 180, freqEnd: 90, start: t, dur: 0.12, gain: 1.1 });
+            tone({ type: 'triangle', freq: 160, freqEnd: 80, start: t + 0.14, dur: 0.14, gain: 1.0 });
+            break;
+          case 'ping-double':
+            tone({ freq: 880, start: t, dur: 0.14, gain: 0.85 });
+            tone({ freq: 1174, start: t + 0.16, dur: 0.18, gain: 0.9 });
+            break;
+          case 'glass':
+            tone({ type: 'sine', freq: 1400, freqEnd: 1100, start: t, dur: 0.28, gain: 0.7 });
+            tone({ type: 'triangle', freq: 2100, freqEnd: 1600, start: t + 0.02, dur: 0.2, gain: 0.35 });
+            break;
+          case 'marimba':
+            tone({ type: 'triangle', freq: 523, freqEnd: 480, start: t, dur: 0.35, gain: 0.95 });
+            tone({ type: 'sine', freq: 1046, freqEnd: 900, start: t, dur: 0.2, gain: 0.25 });
+            break;
+          case 'alarm-soft':
+            [660, 780, 920].forEach((f, i) => {
+              tone({ type: 'square', freq: f, start: t + i * 0.13, dur: 0.1, gain: 0.35 });
+            });
+            break;
+          case 'chord':
+            [523, 659, 784].forEach((f, i) => {
+              tone({ freq: f, start: t + i * 0.03, dur: 0.4, gain: 0.45 });
+            });
+            break;
+          case 'radar':
+            tone({ type: 'sawtooth', freq: 400, freqEnd: 1200, start: t, dur: 0.18, gain: 0.4 });
+            tone({ type: 'sine', freq: 1200, freqEnd: 600, start: t + 0.12, dur: 0.15, gain: 0.5 });
+            break;
+          case 'bubble':
+            [600, 800, 1000].forEach((f, i) => {
+              tone({ freq: f, freqEnd: f * 1.2, start: t + i * 0.09, dur: 0.1, gain: 0.7 });
+            });
+            break;
+          case 'low-boop':
+            tone({ type: 'triangle', freq: 240, freqEnd: 140, start: t, dur: 0.28, gain: 1.15 });
+            break;
+          case 'current':
+          default:
+            tone({ freq: 880, freqEnd: 660, start: t, dur: 0.22, gain: 0.45 });
+            break;
+        }
+      } catch { /* ignore */ }
+    }
+
+    function previewNotifySound(eventKey) {
+      const soundId = readNotifySoundFromModal(eventKey);
+      const volume = Number(document.getElementById('notify-volume').value) || 0.55;
+      playNotifySoundId(soundId, volume);
+    }
+
+    function emitDashboardNotify({ title, body, tag, forceToast = false, soundId }) {
+      if (!notifyPrefs.enabled) return;
+      if (notifyPrefs.sound) {
+        playNotifySoundId(soundId || notifyPrefs.soundCrDone || 'ping-double');
+      }
+
+      let postedOs = false;
+      if (notifyPrefs.browser && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          const n = new Notification(title, {
+            body,
+            tag: tag || undefined,
+            silent: true // we play our own sound
+          });
+          postedOs = true;
+          n.onclick = () => {
+            window.focus();
+            n.close();
+          };
+        } catch (err) {
+          console.warn('Notification failed:', err);
+        }
+      }
+
+      // macOS / Chrome often suppress the banner while this tab is focused.
+      const tabVisible = document.visibilityState === 'visible';
+      if (
+        forceToast
+        || !postedOs
+        || tabVisible
+        || !notifyPrefs.browser
+        || !('Notification' in window)
+        || Notification.permission !== 'granted'
+      ) {
+        showToast(`${title}: ${body}`, forceToast ? 6000 : 3500);
+      }
+    }
+
+    async function testNotify() {
+      const browser = document.getElementById('notify-browser').checked;
+      const sound = document.getElementById('notify-sound').checked;
+      const enabledBox = document.getElementById('notify-enabled').checked;
+      const volume = Number(document.getElementById('notify-volume').value) || 0.55;
+      const testSound = readNotifySoundFromModal('crDone');
+
+      if (browser) {
+        const ok = await ensureNotifyPermission();
+        refreshNotifyPermUi();
+        if (!ok) {
+          showToast(
+            Notification.permission === 'denied'
+              ? 'Browser blocked notifications — allow them for localhost:4000 in site settings'
+              : 'Could not get notification permission'
+          );
+          if (sound) playNotifySoundId(testSound, volume);
+          return;
+        }
+      }
+
+      const prev = { ...notifyPrefs };
+      notifyPrefs = {
+        ...notifyPrefs,
+        enabled: true,
+        browser,
+        sound,
+        volume
+      };
+      emitDashboardNotify({
+        title: 'Local Dev Dashboard',
+        body: browser
+          ? 'Test OK — if you only saw this toast, check Notification Center (banner is often hidden while this tab is focused)'
+          : 'Test OK (sound/toast only — browser notifications unchecked)',
+        tag: `dashboard-test-${Date.now()}`,
+        forceToast: true,
+        soundId: testSound
+      });
+      notifyPrefs = prev;
+
+      if (!enabledBox) {
+        setTimeout(() => showToast('Tip: enable + Save so real events notify too', 4000), 4500);
+      }
+    }
+
+    function projectNotifySnap(proj) {
+      const cr = proj.cr || {};
+      const agent = proj.agent && proj.agent.working ? proj.agent : null;
+      const linger = agent ? agentSessionLinger(agent) : null;
+      return {
+        crState: cr.state || 'empty',
+        ci: proj.ci || null,
+        agentWorking: !!agent,
+        agentStartedAt: agent?.startedAt || null,
+        linger: !!linger?.linger
+      };
+    }
+
+    function repoOwnerLogin(proj) {
+      const raw = String(proj?.repo || '');
+      const m = raw.match(/github\.com[/:]([^/]+)\/[^/]+/i);
+      return m ? m[1] : null;
+    }
+
+    function prAuthorLogin(proj, pr) {
+      if (pr?.author?.login) return pr.author.login;
+      const prNum = pr?.number || proj?.cr?.prNumber;
+      const prs = Array.isArray(proj?.prs) ? proj.prs : [];
+      const hit = prNum
+        ? prs.find((p) => p.number === prNum)
+        : prs[0];
+      return hit?.author?.login || null;
+    }
+
+    /** Your gh login, or a PR you authored as the repo owner. */
+    function isMyPr(proj, pr) {
+      const author = String(prAuthorLogin(proj, pr) || '').toLowerCase();
+      if (!author) return false;
+      const mine = new Set();
+      if (githubLogin) mine.add(String(githubLogin).toLowerCase());
+      const owner = repoOwnerLogin(proj);
+      if (owner) mine.add(String(owner).toLowerCase());
+      return mine.has(author);
+    }
+
+    /** CR/CI alerts: same ownership check as the CR menu. */
+    function isMyPrForNotify(proj) {
+      return isMyPr(proj);
+    }
+
+    function processNotifyDiff(projects) {
+      const next = {};
+      for (const proj of projects || []) {
+        next[proj.id] = projectNotifySnap(proj);
+      }
+
+      if (!notifySnapshot) {
+        notifySnapshot = next;
+        return;
+      }
+      if (!notifyPrefs.enabled) {
+        notifySnapshot = next;
+        return;
+      }
+
+      for (const proj of projects || []) {
+        const id = proj.id;
+        const cur = next[id];
+        const prev = notifySnapshot[id];
+        if (!cur) continue;
+        const name = proj.name || id;
+        const pr = proj.cr?.prNumber ? ` #${proj.cr.prNumber}` : '';
+
+        if (!prev) continue;
+
+        const mineOk = !notifyPrefs.mineOnly || isMyPrForNotify(proj);
+
+        if (
+          mineOk
+          && notifyPrefs.crActionable
+          && cur.crState === 'actionable'
+          && prev.crState !== 'actionable'
+          && !CR_NOTIFY_TRANSIENT.has(prev.crState)
+        ) {
+          const n = Number(proj.cr?.actionable) || 0;
+          emitDashboardNotify({
+            title: name,
+            body: n > 0 ? `CR: ${n} actionable${pr}` : `CR actionable${pr}`,
+            tag: `cr-actionable-${id}`,
+            soundId: notifyPrefs.soundCrActionable
+          });
+        }
+
+        if (
+          mineOk
+          && notifyPrefs.crDone
+          && CR_BUSY.has(prev.crState)
+          && CR_DONE.has(cur.crState)
+        ) {
+          const label = cur.crState === 'leftover'
+            ? (proj.cr?.tip || 'Autofix done · threads left')
+            : cur.crState === 'delivery'
+              ? 'Autofix delivery blocked'
+              : 'CR clear — good to go';
+          emitDashboardNotify({
+            title: name,
+            body: `${label}${pr}`,
+            tag: `cr-done-${id}`,
+            soundId: notifyPrefs.soundCrDone
+          });
+        }
+
+        if (
+          mineOk
+          && notifyPrefs.ciFailing
+          && cur.ci === 'failing'
+          && prev.ci !== 'failing'
+        ) {
+          emitDashboardNotify({
+            title: name,
+            body: `CI failing${pr}`,
+            tag: `ci-fail-${id}`,
+            soundId: notifyPrefs.soundCiFailing
+          });
+        }
+
+        if (
+          notifyPrefs.agentLinger
+          && cur.linger
+          && (!prev.linger || prev.agentStartedAt !== cur.agentStartedAt)
+        ) {
+          emitDashboardNotify({
+            title: name,
+            body: `Agent still working${pr} — maybe check in`,
+            tag: `agent-linger-${id}-${cur.agentStartedAt || ''}`,
+            soundId: notifyPrefs.soundAgentLinger
+          });
+        }
+      }
+
+      notifySnapshot = next;
+    }
+    // --- end Notifications ---
+
+    // --- Mockups catalog ---
+    async function openMocksModal() {
+      const list = document.getElementById('mocks-list');
+      const modal = document.getElementById('mocks-modal');
+      if (!list || !modal) return;
+      list.innerHTML = '<div class="mocks-empty">Loading…</div>';
+      modal.classList.add('open');
+      try {
+        const res = await fetch('/mocks/catalog.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const items = await res.json();
+        if (!Array.isArray(items) || !items.length) {
+          list.innerHTML = '<div class="mocks-empty">No mockups in catalog.</div>';
+          return;
+        }
+        list.innerHTML = items.map((item) => {
+          const file = String(item.file || '').replace(/[^a-zA-Z0-9._-]/g, '');
+          const title = escapeHtml(item.title || file || 'Mock');
+          const desc = escapeHtml(item.desc || '');
+          const href = `/mocks/${encodeURIComponent(file)}`;
+          return `<div class="mocks-item">
+            <div class="copy">
+              <strong>${title}</strong>
+              <span>${desc}</span>
+            </div>
+            <a class="btn-open" href="${href}" target="_blank" rel="noopener">Open</a>
+          </div>`;
+        }).join('');
+      } catch (err) {
+        list.innerHTML = `<div class="mocks-empty">Couldn’t load catalog: ${escapeHtml(err.message || String(err))}</div>`;
+      }
+    }
+
+    function closeMocksModal(event) {
+      if (event && event.target !== event.currentTarget && event.type === 'click') return;
+      document.getElementById('mocks-modal')?.classList.remove('open');
+    }
+    // --- end Mockups catalog ---
 
     async function getAgentPrompt() {
       if (cachedAgentPrompt) return cachedAgentPrompt;
@@ -1437,11 +3327,32 @@
         const projects = Array.isArray(data) ? data : (data.projects || []);
         lastProjects = projects;
         lastRateLimit = (data && data.rateLimit) || { private: null, oss: null };
+        lastApiLimit = (data && data.apiLimit) || { restUntil: null, graphqlUntil: null };
+        if (data?.github?.login) githubLogin = data.github.login;
+        if (Array.isArray(data?.globalLinks)) {
+          lastGlobalLinks = data.globalLinks;
+          renderGlobalLinks(lastGlobalLinks);
+        }
+        // --- CR Autofix (removable) ---
+        crAutofixEnabled = data?.features?.crAutofix !== false;
+        // --- end CR Autofix ---
+        processNotifyDiff(projects);
+        renderApiLimitBanner(lastApiLimit);
         renderRateLimitBanner(lastRateLimit);
         renderProjects(projects);
       } catch (err) {
         console.error('Failed to fetch status:', err);
       }
+    }
+
+    function agentSessionLinger(agent) {
+      const AGENT_LINGER_MS = 2 * 60 * 1000;
+      const started = Date.parse(agent?.startedAt || '');
+      if (!Number.isFinite(started)) return { linger: false, ageMs: 0, ageLabel: '' };
+      const ageMs = Math.max(0, Date.now() - started);
+      const mins = Math.floor(ageMs / 60000);
+      const ageLabel = mins < 1 ? '<1m' : `${mins}m`;
+      return { linger: ageMs >= AGENT_LINGER_MS, ageMs, ageLabel };
     }
 
     function projectAvatarHtml(proj) {
@@ -1469,77 +3380,259 @@
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
 
+    const ACTIVE_PROJECT_KEY = 'dev-dashboard-active-project';
+    const SELECTED_PR_KEY = 'dev-dashboard-selected-pr';
+    let activeProjectId = null;
+    try { activeProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || null; } catch { /* ignore */ }
+    let selectedPrByProject = {};
+    try {
+      const raw = localStorage.getItem(SELECTED_PR_KEY);
+      selectedPrByProject = raw ? JSON.parse(raw) : {};
+      if (!selectedPrByProject || typeof selectedPrByProject !== 'object') selectedPrByProject = {};
+    } catch { selectedPrByProject = {}; }
+
+    function persistActiveProject(id) {
+      activeProjectId = id;
+      try {
+        if (id) localStorage.setItem(ACTIVE_PROJECT_KEY, id);
+        else localStorage.removeItem(ACTIVE_PROJECT_KEY);
+      } catch { /* ignore */ }
+    }
+
+    function persistSelectedPr(projectId, prNumber) {
+      if (!projectId) return;
+      if (prNumber == null) delete selectedPrByProject[projectId];
+      else selectedPrByProject[projectId] = prNumber;
+      try { localStorage.setItem(SELECTED_PR_KEY, JSON.stringify(selectedPrByProject)); } catch { /* ignore */ }
+    }
+
+    function selectProject(projectId) {
+      persistActiveProject(projectId);
+      openCrMenuId = null;
+      if (lastProjects.length) renderProjects(lastProjects);
+    }
+
+    function selectPr(projectId, prNumber) {
+      persistSelectedPr(projectId, prNumber);
+      openCrMenuId = null;
+      if (lastProjects.length) renderProjects(lastProjects);
+    }
+
+    function projectPrs(proj) {
+      if (Array.isArray(proj.prs) && proj.prs.length) return proj.prs;
+      // Fallback when server hasn't populated prs yet: synthesize from aggregate.
+      if (proj.cr?.prNumber) {
+        return [{
+          number: proj.cr.prNumber,
+          title: proj.cr.tip || `PR #${proj.cr.prNumber}`,
+          url: proj.cr.prUrl || null,
+          ci: proj.ci || null,
+          cr: proj.cr
+        }];
+      }
+      return [];
+    }
+
+    function selectedPrFor(proj) {
+      const prs = projectPrs(proj);
+      if (!prs.length) return null;
+      const want = selectedPrByProject[proj.id];
+      return prs.find((p) => p.number === want) || prs[0];
+    }
+
+    function sideBestCi(proj) {
+      const rankCi = { failing: 3, running: 2, passing: 1 };
+      let best = proj.ci || null;
+      for (const pr of projectPrs(proj)) {
+        if ((rankCi[pr.ci] || 0) > (rankCi[best] || 0)) best = pr.ci;
+      }
+      return best;
+    }
+
+    function sideAvatarHtml(proj) {
+      const raw = projectAvatarHtml(proj);
+      return raw
+        .replace(/class="project-avatar"/g, 'class="av"')
+        .replace(/class="project-avatar-fallback/g, 'class="av-fallback')
+        .replace(/width="40"|height="40"/g, '');
+    }
+
     function renderProjects(projects) {
-      const container = document.getElementById('projects-container');
-      let activePortsCount = 0;
-      let totalServices = 0;
-      let html = '';
       const ordered = sortProjectsBySavedOrder(projects);
 
+      const known = new Set(loadProjectOrder());
+      const missing = ordered.map((p) => p.id).filter((id) => !known.has(id));
+      if (missing.length) saveProjectOrder([...loadProjectOrder(), ...missing]);
+
       if (!ordered.length) {
-        html = `
-          <div class="project-card">
-            <div class="project-name">No projects yet</div>
-            <div class="project-desc" style="margin-top: 8px;">
-              Copy the agent prompt, open the project you want to add, and paste it into Cursor or Antigravity.
-            </div>
-            <div style="margin-top: 14px;">
-              <button class="btn-primary" onclick="copyAgentPrompt()">Copy agent prompt</button>
-            </div>
-          </div>
-        `;
-        container.innerHTML = html;
-        document.getElementById('stats').textContent = '0 of 0 ports active';
+        document.getElementById('side-list').innerHTML = `
+          <div class="panel-empty" style="padding:8px">No projects yet. Copy the agent prompt to register one.</div>`;
+        document.getElementById('main-empty').hidden = false;
+        document.getElementById('main-empty').textContent = 'No projects yet';
+        document.getElementById('main-filled').hidden = true;
         return;
       }
 
-      // Keep newly seen projects appended in the saved order.
-      const known = new Set(loadProjectOrder());
-      const missing = ordered.map((p) => p.id).filter((id) => !known.has(id));
-      if (missing.length) {
-        saveProjectOrder([...loadProjectOrder(), ...missing]);
+      if (!activeProjectId || !ordered.some((p) => p.id === activeProjectId)) {
+        persistActiveProject(ordered[0].id);
       }
 
-      for (const proj of ordered) {
-        const dirShort = String(proj.directory || '').replace(/^\/Users\/[^/]+/, '~');
-        const ci = proj.ci || null;
+      document.getElementById('side-list').innerHTML = ordered.map((proj) => {
+        const ci = sideBestCi(proj);
         const ciClass = ci === 'failing' ? ' ci-failing'
           : ci === 'running' ? ' ci-running'
           : ci === 'passing' ? ' ci-passing'
           : '';
-        const ciAttr = ci ? ` data-ci="${escapeHtml(ci)}"` : '';
-        html += `
-          <div class="project-card${ciClass}" draggable="true" data-project-id="${escapeHtml(proj.id)}"${ciAttr}>
-            <div class="project-top">
-              <div class="project-header">
-                ${projectAvatarHtml(proj)}
-                <div class="project-heading">
-                  <div class="project-title-row">
-                    <div class="project-name">${escapeHtml(proj.name)}</div>
-                  </div>
-                  ${projectLinksHtml(proj)}
-                </div>
-                <div class="project-header-actions">
-                  <button class="btn-settings" title="Project settings" onclick="openSettingsModal('${escapeHtml(proj.id)}')">${ICON_SETTINGS}</button>
-                </div>
+        return `
+          <button type="button" class="side-item${ciClass}${proj.id === activeProjectId ? ' active' : ''}"
+            data-project-id="${escapeHtml(proj.id)}"
+            ${ci ? `data-ci="${escapeHtml(ci)}"` : ''}>
+            <div class="n">${sideAvatarHtml(proj)}<span>${escapeHtml(proj.name)}</span></div>
+          </button>`;
+      }).join('');
+
+      bindCardDragHandlers();
+      try {
+        renderMainDetail(ordered.find((p) => p.id === activeProjectId) || ordered[0]);
+      } catch (err) {
+        console.error('renderMainDetail failed:', err);
+      }
+      ensureCiCometLoop();
+      ensureReviewCometLoop();
+    }
+
+    function agentStripHtml(proj) {
+      const agent = proj.agent && proj.agent.working ? proj.agent : null;
+      const agentLinger = agent ? agentSessionLinger(agent) : null;
+      const crState = proj.cr?.state || '';
+      const autofixing = crAutofixEnabled && crState === 'autofixing';
+      const crReviewing = crAutofixEnabled && crState === 'reviewing' && proj.cr?.autofix?.phase === 'reviewing';
+      const autofixDelivery = crAutofixEnabled && crState === 'delivery';
+      const autofixLeftover = crAutofixEnabled && crState === 'leftover';
+      const prChip = proj.cr?.prNumber
+        ? `<span class="pr">#${escapeHtml(String(proj.cr.prNumber))}</span>`
+        : '';
+      if (autofixing) {
+        return `<div class="agent-strip autofixing" title="CodeRabbit Autofix running"><span class="icon" aria-hidden="true">🐰</span><span class="summary">Autofix running…</span>${prChip}</div>`;
+      }
+      if (crReviewing) {
+        return `<div class="agent-strip cr-reviewing" title="CodeRabbit review in progress"><span class="icon" aria-hidden="true">🐰</span><span class="summary">Review running…</span>${prChip}</div>`;
+      }
+      if (autofixDelivery) {
+        return `<div class="agent-strip delivery" title="Autofix delivery blocked"><span class="icon" aria-hidden="true">⚠️</span><span class="summary">Autofix delivery blocked</span>${prChip}</div>`;
+      }
+      if (autofixLeftover) {
+        return `<div class="agent-strip leftover" title="Autofix finished; leftover threads may be stale"><span class="icon" aria-hidden="true">⚠️</span><span class="summary">${escapeHtml(proj.cr?.tip || 'Autofix done · threads left')}</span>${prChip}</div>`;
+      }
+      if (!agent) return '';
+      const linger = !!agentLinger?.linger;
+      const ageLabel = agentLinger?.ageLabel || '';
+      const tip = linger
+        ? `Agent working ${ageLabel} — maybe check in${agent.pr ? ` (PR #${String(agent.pr)})` : ''}`
+        : `Agent working${agent.pr ? ` on PR #${String(agent.pr)}` : ''}`;
+      return `<div class="agent-strip${linger ? ' linger' : ''}" title="${escapeHtml(tip)}"><span class="icon">${ICON_BOT}</span>${agent.summary ? `<span class="summary">${escapeHtml(agent.summary)}</span>` : '<span class="summary">Working…</span>'}${agent.pr ? `<span class="pr">#${escapeHtml(String(agent.pr))}</span>` : ''}</div>`;
+    }
+
+    function openPrInBrowser(event, url) {
+      if (!url || url === '#') return;
+      // Don't steal clicks from the CR chip / menu.
+      if (event.target.closest('.cr-wrap')) return;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    function panelPrsHtml(proj) {
+      const prs = projectPrs(proj);
+      if (!prs.length) return '<div class="panel-empty">No open PRs.</div>';
+      const sel = selectedPrFor(proj);
+      const selN = sel?.number;
+      return `<div class="pr-list">${prs.map((pr) => {
+        const ci = pr.ci || null;
+        const ciClass = ci === 'failing' ? 'ci-failing'
+          : ci === 'running' ? 'ci-running'
+          : ci === 'passing' ? 'ci-passing' : '';
+        const isSel = pr.number === selN;
+        const title = escapeHtml(pr.title || `PR #${pr.number}`);
+        const href = pr.url ? escapeHtml(pr.url) : '';
+        const ciLabel = ci === 'running' ? 'CI running'
+          : ci === 'failing' ? 'CI failing'
+          : ci === 'passing' ? 'CI passing'
+          : 'No CI signal';
+        const author = pr.author?.login
+          ? `<span class="pr-author">
+              <img src="${escapeHtml(pr.author.avatarUrl || `https://github.com/${pr.author.login}.png?size=64`)}" alt="" loading="lazy" referrerpolicy="no-referrer">
+              <span class="login">${escapeHtml(pr.author.login)}</span>
+            </span>`
+          : '';
+        return `
+          <div class="pr-card ${ciClass} ${isSel ? 'sel' : ''} ${isWaitingOnAuthor(proj.id, pr.number) ? 'waiting' : ''}" data-pr="${pr.number}"
+            onclick="selectPr('${escapeHtml(proj.id)}', ${pr.number}); openPrInBrowser(event, '${href}')">
+            <div class="pr-top">
+              <div class="pr-body">
+                <div class="pr-id">PR #${pr.number}</div>
+                <div class="pr-title">${title}</div>
+                <div class="pr-foot">
+                  ${author}
+                  <span class="pr-ci">${escapeHtml(ciLabel)}</span>
               </div>
-              ${proj.description || dirShort || proj.git ? `
-                <div class="project-meta">
-                  ${proj.description ? `<div class="project-desc">${escapeHtml(proj.description)}</div>` : ''}
-                  ${dirShort ? `<div class="project-dir" title="${escapeHtml(proj.directory)}">${escapeHtml(dirShort)}</div>` : ''}
-                  ${gitLineHtml(proj.git)}
-                  ${commitsHtml(proj)}
-                </div>
-              ` : ''}
             </div>
-            <div class="services-list">
-        `;
+              ${prCrChipHtml(proj, pr)}
+            </div>
+          </div>`;
+      }).join('')}</div>`;
+    }
 
-        for (const s of proj.services) {
-          totalServices++;
-          if (s.isPortOpen) activePortsCount++;
-          if (s.isPortOpen) pendingStarts.delete(s.id);
+    function prCrChipHtml(proj, pr) {
+      if (!crAutofixEnabled) return '';
+      const cr = pr.cr || proj.cr || { state: 'empty' };
+      const state = cr.state || 'empty';
+      if (state === 'empty' && !pr.number) return '';
 
+      const actionable = Number(cr.actionable) || 0;
+      const fill = crFillPct(cr);
+      const fillStyle = fill != null ? ` style="--fill:${Math.round(fill)}%"` : '';
+      let badge = '';
+      if ((state === 'actionable' || state === 'delivery' || state === 'leftover') && actionable > 0) {
+        badge = `<span class="badge">${actionable}</span>`;
+      } else if (state === 'reviewing' || state === 'autofixing') {
+        badge = `<span class="badge">…</span>`;
+      } else if (state === 'clear') {
+        badge = `<span class="badge">✓</span>`;
+      }
+
+      let label = 'CR';
+      if (state === 'leftover') label = 'CR leftover';
+      else if (state === 'ready') label = 'CR ready';
+      else if (state === 'limited') label = 'CR limited';
+      else if (state === 'autofixing') label = 'CR autofix';
+      else if (state === 'delivery') label = 'CR delivery';
+
+      const menuKey = `${proj.id}:${pr.number}`;
+      const busy = state === 'autofixing'
+        || (state === 'reviewing' && cr.autofix?.phase === 'reviewing')
+        || pendingCrAction.has(menuKey)
+        || pendingCrAction.has(proj.id);
+      const menuOpen = openCrMenuId === menuKey ? ' open' : '';
+
+      const chip = `
+        <button type="button" class="gh ${escapeHtml(state)}"${fillStyle}
+          title="CodeRabbit actions"
+          ${busy ? 'disabled' : ''}
+          onclick="toggleCrMenu(event, '${escapeHtml(proj.id)}', ${pr.number})">
+          <span class="label"><span class="rabbit" aria-hidden="true">🐰</span><span>${escapeHtml(label)}</span></span>${badge}<span class="chev">▾</span>
+        </button>`;
+
+      return `<div class="cr-wrap" onclick="event.stopPropagation()">
+        ${chip}
+        ${busy ? '' : crMenuHtml(proj, pr, menuOpen)}
+      </div>`;
+    }
+
+    function servicesPanelHtml(proj) {
+      const services = proj.services || [];
+      if (!services.length) return '<div class="panel-empty">No processes configured.</div>';
+      let html = '<div class="services-list">';
+      for (const s of services) {
+        if (s.isPortOpen) pendingStarts.delete(s.id);
           const isStarting = (s.isStarting || pendingStarts.has(s.id)) && !s.isPortOpen;
           const isRunning = s.dashboardRunning && !isStarting;
           const isExternal = s.isExternal && !isStarting;
@@ -1548,99 +3641,147 @@
 
           let dotClass = '';
           let bannerHtml = '';
-
           if (isStarting) {
             dotClass = 'starting';
-            if (s.lastLog) {
-              bannerHtml = `<div class="starting-banner" title="${escapeHtml(s.lastLog)}"><span class="spinner"></span> ${escapeHtml(s.lastLog)}</div>`;
-            } else {
-              bannerHtml = `<div class="starting-banner"><span class="spinner"></span> Waiting for :${s.port}...</div>`;
-            }
-          } else if (isRunning) {
-            dotClass = 'active';
-          } else if (isExternal) {
+          bannerHtml = s.lastLog
+            ? `<div class="starting-banner" title="${escapeHtml(s.lastLog)}"><span class="spinner"></span> ${escapeHtml(s.lastLog)}</div>`
+            : `<div class="starting-banner"><span class="spinner"></span> Waiting for :${s.port}...</div>`;
+        } else if (isRunning) dotClass = 'active';
+        else if (isExternal) {
             const isUnresponsive = health && !health.responsive;
             dotClass = isUnresponsive ? 'zombie' : 'external';
           }
 
-          // A healthy response is the expected case, so it stays silent; only
-          // problems earn a pill.
-          let healthHtml = '';
+        let healthHtml = '';
           if (health && !isStarting) {
-            if (!health.responsive) {
-              healthHtml = `<span class="health-pill warn" title="Port open but HTTP timed out">Zombie (${health.status})</span>`;
-            } else if (Number(health.status) >= 400) {
-              healthHtml = `<span class="health-pill warn" title="HTTP error response">HTTP ${health.status}</span>`;
+          if (!health.responsive) {
+            healthHtml = `<span class="health-pill warn" title="Port open but HTTP timed out">Zombie (${health.status})</span>`;
+          } else if (Number(health.status) >= 400) {
+            healthHtml = `<span class="health-pill warn" title="HTTP error response">HTTP ${health.status}</span>`;
             }
           }
 
           const portLink = s.url || `http://localhost:${s.port}`;
           const cmdText = `${s.command} ${(s.args || []).join(' ')}`;
-          let dotTitle = 'Stopped';
-          if (isStarting) dotTitle = 'Starting…';
-          else if (isRunning) dotTitle = `Running (PID ${s.pid || '?'})`;
-          else if (isExternal) {
-            const procLabel = s.externalProcess ? `${s.externalProcess} (PID ${s.pid || '?'})` : `PID ${s.pid || '?'}`;
-            const memLabel = s.externalMem ? ` · ${s.externalMem}` : '';
-            dotTitle = `External · ${procLabel}${memLabel}`;
-          } else if (isPortOpen) {
-            dotTitle = 'Port listening';
-          }
+        let dotTitle = 'Stopped';
+        if (isStarting) dotTitle = 'Starting…';
+        else if (isRunning) dotTitle = `Running (PID ${s.pid || '?'})`;
+        else if (isExternal) {
+          const procLabel = s.externalProcess ? `${s.externalProcess} (PID ${s.pid || '?'})` : `PID ${s.pid || '?'}`;
+          const memLabel = s.externalMem ? ` · ${s.externalMem}` : '';
+          dotTitle = `External · ${procLabel}${memLabel}`;
+        } else if (isPortOpen) dotTitle = 'Port listening';
 
-          const portHtml = s.port ? `
-            <a href="${portLink}" target="_blank" rel="noopener noreferrer" class="port-tag ${isPortOpen ? 'active' : ''}" onclick="openServiceLink(event, '${escapeHtml(proj.id)}', '${portLink}')">:${s.port}</a>
-          ` : '';
+        const portHtml = s.port ? `
+          <a href="${portLink}" target="_blank" rel="noopener noreferrer" class="port-tag ${isPortOpen ? 'active' : ''}" onclick="openServiceLink(event, '${escapeHtml(proj.id)}', '${portLink}')">:${s.port}</a>
+        ` : '';
 
-          let actionsHtml = '';
-          if (isStarting) {
-            actionsHtml = `<button class="btn-action-icon" disabled><span class="spinner"></span></button>`;
-          } else if (!isRunning && !isExternal) {
-            actionsHtml = `<button class="btn-action-icon btn-go" title="Start" onclick="startService('${s.id}')">${ICON_START}</button>`;
-          } else if (isRunning) {
-            actionsHtml = `
-              <button class="btn-action-icon btn-danger" title="Stop" onclick="stopService('${s.id}')">${ICON_STOP}</button>
-              <button class="btn-action-icon" title="Restart" onclick="restartService('${s.id}')">${ICON_RESTART}</button>
-            `;
-          } else if (isExternal) {
-            actionsHtml = `
-              <button class="btn-action-icon" onclick="restartService('${s.id}')" title="Relaunch — kill external process and take over via dashboard">${ICON_RESTART}</button>
-              <button class="btn-action-icon btn-danger" title="Kill Port" onclick="killPort(${s.port})">${ICON_STOP}</button>
-            `;
-          }
-          actionsHtml += `<button class="btn-action-icon" title="Logs" onclick="openLogs('${s.id}', '${escapeHtml(s.name)}')">${ICON_LOGS}</button>`;
+        let actionsHtml = '';
+        if (isStarting) {
+          actionsHtml = `<button class="btn-action-icon" disabled><span class="spinner"></span></button>`;
+        } else if (!isRunning && !isExternal) {
+          actionsHtml = `<button class="btn-action-icon btn-go" title="Start" onclick="startService('${s.id}')">${ICON_START}</button>`;
+        } else if (isRunning) {
+          actionsHtml = `
+            <button class="btn-action-icon btn-danger" title="Stop" onclick="stopService('${s.id}')">${ICON_STOP}</button>
+            <button class="btn-action-icon" title="Restart" onclick="restartService('${s.id}')">${ICON_RESTART}</button>
+          `;
+        } else if (isExternal) {
+          actionsHtml = `
+            <button class="btn-action-icon" onclick="restartService('${s.id}')" title="Relaunch — kill external process and take over via dashboard">${ICON_RESTART}</button>
+            <button class="btn-action-icon btn-danger" title="Kill Port" onclick="killPort(${s.port})">${ICON_STOP}</button>
+          `;
+        }
+        actionsHtml += `<button class="btn-action-icon" title="Logs" onclick="openLogs('${s.id}', '${escapeHtml(s.name)}')">${ICON_LOGS}</button>`;
 
           html += `
             <div class="service-row">
-              <div class="service-top">
-                <div class="service-main">
-                  <div class="service-meta">
-                    <span class="service-name-row">
-                      <span class="service-name">${escapeHtml(s.name)}</span>
-                      <span class="status-dot ${dotClass}" title="${escapeHtml(dotTitle)}"></span>
-                    </span>
+            <div class="service-top">
+              <div class="service-main">
+                <div class="service-meta">
+                  <span class="service-name-row">
+                    <span class="service-name">${escapeHtml(s.name)}</span>
+                    <span class="status-dot ${dotClass}" title="${escapeHtml(dotTitle)}"></span>
+                  </span>
                     ${healthHtml}
-                    ${portHtml}
+                  ${portHtml}
                   </div>
-                  <span class="service-cmd" title="${escapeHtml(cmdText)}">${escapeHtml(cmdText)}</span>
+                <span class="service-cmd" title="${escapeHtml(cmdText)}">${escapeHtml(cmdText)}</span>
                   ${bannerHtml}
                 </div>
-                <div class="actions">${actionsHtml}</div>
+              <div class="actions">${actionsHtml}</div>
               </div>
-            </div>
-          `;
-        }
-
-        html += `
-            </div>
-          </div>
-        `;
+          </div>`;
       }
+      html += '</div>';
+      return html;
+    }
 
-      container.innerHTML = html;
-      bindCardDragHandlers();
-      document.getElementById('stats').textContent = `${activePortsCount} of ${totalServices} ports active`;
-      ensureCiCometLoop();
-      ensureReviewCometLoop();
+    function linksPanelHtml(proj) {
+      const links = Array.isArray(proj.links) ? proj.links.slice() : [];
+      if (!links.length && proj.repo && /github\.com/i.test(proj.repo)) {
+        links.push({ label: 'GitHub', url: proj.repo });
+      }
+      if (!links.length && proj.liveUrl) {
+        links.push({ label: 'Live', url: proj.liveUrl });
+      }
+      if (!links.length) return '<div class="panel-empty">No links — add in Settings.</div>';
+
+      return `<div class="links-grid">${links.map((link, i) => {
+        const space = resolveLinkSpace(proj, link) || 'Default';
+        return `
+          <button type="button" class="link-card"
+            onclick="openProjectLink(event, '${escapeHtml(proj.id)}', ${i})">
+            <div class="top">
+              ${linkIconHtml(proj, link)}
+              <div class="label">${escapeHtml(link.label || 'Link')}</div>
+                  </div>
+            <div class="space-row">
+              <span class="pill space">${escapeHtml(space)}</span>
+            </div>
+          </button>`;
+      }).join('')}</div>`;
+    }
+
+    function sectionPanel(title, count, inner) {
+      return `<div class="panel"><div class="panel-h"><h3>${title}</h3><span class="count">${count}</span></div>${inner}</div>`;
+    }
+
+    function renderMainDetail(proj) {
+      const empty = document.getElementById('main-empty');
+      const filled = document.getElementById('main-filled');
+      const body = document.getElementById('main-body');
+      if (!proj) {
+        empty.hidden = false;
+        filled.hidden = true;
+        if (body) body.innerHTML = '';
+        return;
+      }
+      empty.hidden = true;
+      filled.hidden = false;
+
+      // Clear first so a mid-render error can't leave another project's panels up.
+      if (body) body.innerHTML = '';
+
+      document.getElementById('main-avatar').innerHTML = projectAvatarHtml(proj);
+      document.getElementById('main-name').textContent = proj.name || '—';
+      const dirShort = String(proj.directory || '').replace(/^\/Users\/[^/]+/, '~');
+      document.getElementById('main-path').textContent = dirShort;
+      document.getElementById('main-path').title = proj.directory || '';
+      document.getElementById('main-git').innerHTML = gitLineHtml(proj.git);
+      document.getElementById('main-agent').innerHTML = agentStripHtml(proj);
+      document.getElementById('main-commits').innerHTML = commitsHtml(proj);
+      document.getElementById('main-settings').onclick = () => openSettingsModal(proj.id);
+
+      const prs = projectPrs(proj);
+      const up = (proj.services || []).filter((s) => s.isPortOpen).length;
+      const total = (proj.services || []).length;
+      const links = Array.isArray(proj.links) ? proj.links.length : 0;
+      const prPanel = sectionPanel('Open PRs', String(prs.length), panelPrsHtml(proj));
+      const procPanel = sectionPanel('Processes', `${up}/${total} up`, servicesPanelHtml(proj));
+      const linkPanel = sectionPanel('Links', String(links || (proj.repo ? 1 : 0)), linksPanelHtml(proj));
+      body.innerHTML =
+        `<div class="org-split">${prPanel}<div class="org-stack">${procPanel}${linkPanel}</div></div>`;
     }
 
     function gitLineHtml(git) {
@@ -1697,7 +3838,7 @@
       });
     }
 
-    // Soft conic comet for CI-failing cards. Trail length is a fixed fraction of
+    // Soft conic comet for CI PR cards. Trail length is a fixed fraction of
     // the perimeter (26%) so it does not pinch mid-top/bottom; lap is 3.5s.
     const CI_COMET_LAP_MS = 3500;
     const CI_COMET_TRAIL = 0.26;
@@ -1751,9 +3892,12 @@
     function paintCiComet(card, t) {
       const kind = card.classList.contains('ci-running') ? 'running' : 'failing';
       const pal = CI_COMET_PALETTES[kind];
+      const fill = card.classList.contains('side-item') && card.classList.contains('active')
+        ? '#1c2b3f'
+        : '#0d1117';
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         card.style.background =
-          'linear-gradient(var(--card-bg), var(--card-bg)) padding-box,' +
+          `linear-gradient(${fill}, ${fill}) padding-box,` +
           `linear-gradient(${pal.reduced}, ${pal.reduced}) border-box`;
         return;
       }
@@ -1783,12 +3927,14 @@
       }
 
       card.style.background =
-        `linear-gradient(var(--card-bg), var(--card-bg)) padding-box,` +
+        `linear-gradient(${fill}, ${fill}) padding-box,` +
         `conic-gradient(from ${headDeg}deg, ${stops.join(', ')}) border-box`;
     }
 
     function ciCometTick(now) {
-      const cards = document.querySelectorAll('.project-card.ci-failing, .project-card.ci-running');
+      const cards = document.querySelectorAll(
+        '.pr-card.ci-failing, .pr-card.ci-running, .side-item.ci-failing, .side-item.ci-running'
+      );
       if (!cards.length) {
         ciCometRaf = null;
         ciCometT0 = null;
@@ -1802,7 +3948,9 @@
 
     function ensureCiCometLoop() {
       if (ciCometRaf != null) return;
-      if (!document.querySelector('.project-card.ci-failing, .project-card.ci-running')) return;
+      if (!document.querySelector(
+        '.pr-card.ci-failing, .pr-card.ci-running, .side-item.ci-failing, .side-item.ci-running'
+      )) return;
       ciCometRaf = requestAnimationFrame(ciCometTick);
     }
 
@@ -1864,6 +4012,7 @@
       if (!document.querySelector('.gh.reviewing')) return;
       chipCometRaf = requestAnimationFrame(chipCometTick);
     }
+
 
     async function startService(serviceId) {
       try {
@@ -1964,6 +4113,7 @@
     const SYSTEM_BROWSER = '__system__';
     let arcSpaces = [];
     let globalDefaultSpace = 'Me';
+    let lastGlobalLinks = [];
     let openLinkMenuId = null;
     let openCommitsId = null;
 
@@ -1979,7 +4129,314 @@
       supabase: '#3ecf8e',
       vercel: '#e6edf3',
       firebase: '#ffca28',
-      'google cloud': '#4285f4'
+      'google cloud': '#4285f4',
+      stripe: '#635bff'
+    };
+
+    // Brand icons for link cards — defaults + overrides from /link-icons.json
+    const LINK_ICONS = {
+      github: 'https://cdn.simpleicons.org/github/c9d1d9',
+      linear: 'https://cdn.simpleicons.org/linear/5e6ad2',
+      sentry: 'https://cdn.simpleicons.org/sentry/e1567c',
+      grafana: 'https://cdn.simpleicons.org/grafana/f46800',
+      supabase: 'https://cdn.simpleicons.org/supabase/3ecf8e',
+      vercel: 'https://cdn.simpleicons.org/vercel/e6edf3',
+      firebase: 'https://cdn.simpleicons.org/firebase/ffca28',
+      stripe: 'https://cdn.simpleicons.org/stripe/635bff',
+      'google cloud': 'https://cdn.simpleicons.org/googlecloud/4285f4',
+      braintrust: null,
+      arc: 'https://preview.redd.it/better-arc-icon-v0-zyc0uyavfoia1.png?width=1024&format=png&auto=webp&s=0839060d82f15293308056a308008ae7d1295ae6'
+    };
+
+    async function loadLinkIcons() {
+      try {
+        const res = await fetch('/api/link-icons', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || typeof data !== 'object') return;
+        applyLinkIconMap(data);
+        if (lastProjects.length) renderProjects(lastProjects);
+      } catch {
+        /* keep defaults */
+      }
+    }
+
+    function applyLinkIconMap(data) {
+      for (const [key, url] of Object.entries(data)) {
+        const k = String(key).toLowerCase();
+        if (url === null || url === '') LINK_ICONS[k] = null;
+        else if (typeof url === 'string') LINK_ICONS[k] = url;
+      }
+      LINK_HOST_ICONS['github.com'] = LINK_ICONS.github;
+      LINK_HOST_ICONS['linear.app'] = LINK_ICONS.linear;
+      LINK_HOST_ICONS['sentry.io'] = LINK_ICONS.sentry;
+      LINK_HOST_ICONS['grafana.net'] = LINK_ICONS.grafana;
+      LINK_HOST_ICONS['grafana.com'] = LINK_ICONS.grafana;
+      LINK_HOST_ICONS['supabase.com'] = LINK_ICONS.supabase;
+      LINK_HOST_ICONS['vercel.com'] = LINK_ICONS.vercel;
+      LINK_HOST_ICONS['console.firebase.google.com'] = LINK_ICONS.firebase;
+      LINK_HOST_ICONS['firebase.google.com'] = LINK_ICONS.firebase;
+      LINK_HOST_ICONS['stripe.com'] = LINK_ICONS.stripe;
+      LINK_HOST_ICONS['dashboard.stripe.com'] = LINK_ICONS.stripe;
+      LINK_HOST_ICONS['console.cloud.google.com'] = LINK_ICONS['google cloud'];
+    }
+
+    function linkIconRowHtml(label = '', url = '') {
+      return `
+        <div class="link-edit-row link-icon-row">
+          <label class="field label-field">
+            <span>Label</span>
+            <input class="link-label" type="text" placeholder="github" value="${escapeHtml(label)}" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Icon URL</span>
+            <input class="link-url" type="url" placeholder="https://…" value="${escapeHtml(url)}" autocomplete="off">
+          </label>
+          <button class="btn-mini danger row-remove" type="button" onclick="this.closest('.link-icon-row').remove()" title="Remove">Remove</button>
+        </div>`;
+    }
+
+    function renderLinkIconRows(map) {
+      const container = document.getElementById('global-link-icons');
+      if (!container) return;
+      const entries = Object.entries(map || {}).filter(([, v]) => v);
+      if (!entries.length) {
+        container.innerHTML = linkIconRowHtml('github', LINK_ICONS.github || '');
+        return;
+      }
+      container.innerHTML = entries
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => linkIconRowHtml(k, v))
+        .join('');
+    }
+
+    function collectLinkIconRows() {
+      return [...document.querySelectorAll('#global-link-icons .link-icon-row')].reduce((acc, row) => {
+        const label = row.querySelector('.link-label')?.value?.trim().toLowerCase();
+        const url = row.querySelector('.link-url')?.value?.trim();
+        if (label && url) acc[label] = url;
+        return acc;
+      }, {});
+    }
+
+    function addLinkIconRow() {
+      const container = document.getElementById('global-link-icons');
+      if (!container) return;
+      container.insertAdjacentHTML('beforeend', linkIconRowHtml());
+    }
+
+    function setGlobalSettingsTab(tab) {
+      const modal = document.getElementById('global-settings-modal');
+      if (!modal) return;
+      const name = tab || 'links';
+      modal.querySelectorAll('.settings-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === name);
+      });
+      modal.querySelectorAll('.settings-tab-pane').forEach((pane) => {
+        pane.hidden = pane.dataset.pane !== name;
+      });
+    }
+
+    function openGlobalSettings(tab = 'links') {
+      const map = {};
+      for (const [k, v] of Object.entries(LINK_ICONS)) {
+        if (v) map[k] = v;
+      }
+      renderLinkIconRows(map);
+      renderGlobalLinkRows(lastGlobalLinks);
+      fillNotifyForm();
+      setGlobalSettingsTab(tab);
+      document.getElementById('global-settings-modal')?.classList.add('open');
+    }
+
+    function closeGlobalSettings(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('global-settings-modal')?.classList.remove('open');
+    }
+
+    function globalLinkRowHtml(link = {}) {
+      return `
+        <div class="link-edit-row">
+          <div class="link-edit-top">
+            <label class="field label-field">
+              <span>Label</span>
+              <input class="link-label" type="text" placeholder="Gemini usage" value="${escapeHtml(link.label || '')}" autocomplete="off">
+            </label>
+            <label class="field">
+              <span>URL</span>
+              <input class="link-url" type="url" placeholder="https://…" value="${escapeHtml(link.url || '')}" autocomplete="off"
+                     oninput="autoFillGlobalLinkLabel(this)">
+            </label>
+          </div>
+          <div class="link-edit-bottom">
+            <label class="field">
+              <span>Opens in</span>
+              <select class="link-space">${spaceOptionsHtml(link.space || globalDefaultSpace || '', { includeInherit: false })}</select>
+            </label>
+            <button class="btn-mini danger row-remove" onclick="this.closest('.link-edit-row').remove()" title="Remove link">Remove</button>
+          </div>
+        </div>`;
+    }
+
+    function autoFillGlobalLinkLabel(urlInput) {
+      const row = urlInput.closest('.link-edit-row');
+      const labelInput = row?.querySelector('.link-label');
+      if (!labelInput || (labelInput.value.trim() && labelInput.dataset.touched === 'true')) return;
+      const guess = labelFromUrl(urlInput.value.trim());
+      if (guess) labelInput.value = guess;
+    }
+
+    function renderGlobalLinkRows(links) {
+      const container = document.getElementById('global-links-edit');
+      if (!container) return;
+      container.innerHTML = (links || []).map((l) => globalLinkRowHtml(l)).join('');
+      container.querySelectorAll('.link-label').forEach((el) => {
+        el.addEventListener('input', (e) => { e.target.dataset.touched = 'true'; });
+      });
+    }
+
+    function addGlobalLinkRow() {
+      const container = document.getElementById('global-links-edit');
+      if (!container) return;
+      container.insertAdjacentHTML('beforeend', globalLinkRowHtml({ space: globalDefaultSpace }));
+      const row = container.lastElementChild;
+      row?.querySelector('.link-label')?.addEventListener('input', (e) => { e.target.dataset.touched = 'true'; });
+      row?.querySelector('.link-url')?.focus();
+    }
+
+    function collectGlobalLinkRows() {
+      return [...document.querySelectorAll('#global-links-edit .link-edit-row')].map((row) => ({
+        label: row.querySelector('.link-label')?.value?.trim() || '',
+        url: row.querySelector('.link-url')?.value?.trim() || '',
+        space: row.querySelector('.link-space')?.value || ''
+      })).filter((l) => l.url);
+    }
+
+    function renderGlobalLinks(links) {
+      const el = document.getElementById('global-links');
+      if (!el) return;
+      const list = Array.isArray(links) ? links : [];
+      if (!list.length) {
+        el.innerHTML = '';
+        return;
+      }
+      const items = list.map((link, i) => {
+        const iconUrl = resolveLinkIconUrl(link);
+        const icon = iconUrl
+          ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+          : '';
+        let hint = '';
+        try { hint = new URL(link.url).hostname.replace(/^www\./, ''); } catch { hint = link.url || ''; }
+        const href = escapeHtml(link.url || '#');
+        const label = escapeHtml(link.label || 'Link');
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer"
+          onclick="openGlobalLink(event, ${i})">${icon}<span><span class="title">${label}</span><span class="hint">${escapeHtml(hint)}</span></span></a>`;
+      }).join('');
+      el.innerHTML = `
+        <button type="button" class="header-btn" onclick="toggleGlobalLinksMenu(event)" title="Global links">
+          Links<span class="chev">▾</span>
+        </button>
+        <div class="global-links-menu" id="global-links-menu">${items}</div>`;
+    }
+
+    function toggleGlobalLinksMenu(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = document.getElementById('global-links-menu');
+      if (!menu) return;
+      const willOpen = !menu.classList.contains('open');
+      closeGlobalLinksMenu();
+      closeServersMenu();
+      if (willOpen) menu.classList.add('open');
+    }
+
+    function closeGlobalLinksMenu() {
+      document.getElementById('global-links-menu')?.classList.remove('open');
+    }
+
+    function openGlobalLink(event, index) {
+      closeGlobalLinksMenu();
+      const link = lastGlobalLinks[index];
+      if (!link?.url) return;
+      const space = link.space || globalDefaultSpace || '';
+      openInSpace(event, link.url, space);
+    }
+
+    async function saveGlobalSettings() {
+      const icons = collectLinkIconRows();
+      const links = collectGlobalLinkRows();
+      try {
+        await applyNotifySettingsFromForm({ toast: false });
+        const [iconsRes, linksRes] = await Promise.all([
+          fetch('/api/link-icons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(icons)
+          }),
+          fetch('/api/global-links', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ links })
+          })
+        ]);
+        const iconsData = await iconsRes.json().catch(() => ({}));
+        const linksData = await linksRes.json().catch(() => ({}));
+        if (!iconsRes.ok) {
+          showToast(iconsData.error || 'Failed to save link icons');
+          return;
+        }
+        if (!linksRes.ok) {
+          showToast(linksData.error || 'Failed to save global links');
+          return;
+        }
+        applyLinkIconMap(iconsData.icons || icons);
+        lastGlobalLinks = linksData.globalLinks || links;
+        renderGlobalLinks(lastGlobalLinks);
+        closeGlobalSettings();
+        if (lastProjects.length) renderProjects(lastProjects);
+        showToast('Settings saved');
+      } catch (err) {
+        showToast('Failed to save: ' + err.message);
+      }
+    }
+
+    function toggleServersMenu(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = document.getElementById('servers-menu');
+      if (!menu) return;
+      const willOpen = !menu.classList.contains('open');
+      closeServersMenu();
+      closeGlobalLinksMenu();
+      if (willOpen) menu.classList.add('open');
+    }
+
+    function closeServersMenu() {
+      document.getElementById('servers-menu')?.classList.remove('open');
+    }
+
+    function runServersAction(event, action) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeServersMenu();
+      if (action === 'restart') restartAll();
+      else if (action === 'stop') stopAll();
+    }
+
+    const LINK_HOST_ICONS = {
+      'github.com': LINK_ICONS.github,
+      'linear.app': LINK_ICONS.linear,
+      'sentry.io': LINK_ICONS.sentry,
+      'grafana.net': LINK_ICONS.grafana,
+      'grafana.com': LINK_ICONS.grafana,
+      'supabase.com': LINK_ICONS.supabase,
+      'vercel.com': LINK_ICONS.vercel,
+      'console.firebase.google.com': LINK_ICONS.firebase,
+      'firebase.google.com': LINK_ICONS.firebase,
+      'stripe.com': LINK_ICONS.stripe,
+      'dashboard.stripe.com': LINK_ICONS.stripe,
+      'console.cloud.google.com': LINK_ICONS['google cloud'],
+      'braintrust.dev': null
     };
 
     const LINK_HOSTS = {
@@ -1994,6 +4451,55 @@
       'console.firebase.google.com': 'Firebase',
       'console.cloud.google.com': 'Google Cloud'
     };
+
+    function isLiveLink(link) {
+      const label = String(link?.label || '').toLowerCase();
+      return label === 'live' || label === 'prod' || label === 'production' || label === 'app';
+    }
+
+    function resolveLinkIconUrl(link) {
+      const label = String(link?.label || '').toLowerCase();
+      if (LINK_ICONS[label]) return LINK_ICONS[label];
+      try {
+        const host = new URL(link.url).hostname.replace(/^www\./, '');
+        if (Object.prototype.hasOwnProperty.call(LINK_HOST_ICONS, host) && LINK_HOST_ICONS[host]) {
+          return LINK_HOST_ICONS[host];
+        }
+        for (const [domain, src] of Object.entries(LINK_HOST_ICONS)) {
+          if (src && host.endsWith('.' + domain)) return src;
+        }
+        // Generic favicon fallback from the site itself
+        return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+      } catch {
+        return null;
+      }
+    }
+
+    function linkIconHtml(proj, link) {
+      const color = linkColor(link.label);
+      const initials = String(link.label || '?').slice(0, 2).toUpperCase();
+
+      if (isLiveLink(link)) {
+        if (proj.avatar && !/^(https?:|data:|\/)/i.test(proj.avatar)) {
+          return `<div class="icon" style="background:#21262d;font-size:16px">${escapeHtml(proj.avatar)}</div>`;
+        }
+        let src = proj.avatar || null;
+        if (!src && proj.repo) {
+          const match = String(proj.repo).match(/github\.com\/([^/]+)/i);
+          if (match) src = `https://github.com/${match[1]}.png?size=64`;
+        }
+        if (src) {
+          return `<div class="icon"><img src="${escapeHtml(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="(function(img){var p=img.parentElement;img.remove();if(p){p.textContent='${escapeHtml(initials)}';p.style.background='${color}';}})(this)"></div>`;
+        }
+        return `<div class="icon" style="background:${color}">${escapeHtml(initials)}</div>`;
+      }
+
+      const iconUrl = resolveLinkIconUrl(link);
+      if (!iconUrl) {
+        return `<div class="icon" style="background:${color}">${escapeHtml(initials)}</div>`;
+      }
+      return `<div class="icon brand-pad"><img class="brand" src="${escapeHtml(iconUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="(function(img){var p=img.parentElement;img.remove();if(p){p.classList.remove('brand-pad');p.style.background='${color}';p.textContent='${escapeHtml(initials)}';}})(this)"></div>`;
+    }
 
     function formatClock(iso) {
       try {
@@ -2027,6 +4533,12 @@
           : 'actionable';
       }
       if (state === 'reviewing') return 'reviewing';
+      if (state === 'autofixing') return 'autofixing';
+      if (state === 'delivery') return 'delivery blocked';
+      if (state === 'leftover') {
+        const n = Number(cr.actionable) || 0;
+        return n > 0 ? `autofix done · ${n} left` : 'autofix done · threads left';
+      }
       if (state === 'ready') return 'ready to trigger';
       if (state === 'limited') return 'rate-limited';
       if (state === 'clear') return 'good to go';
@@ -2040,7 +4552,7 @@
       const actionable = Number(cr.actionable) || 0;
       const fill = crFillPct(cr);
       const fillStyle = fill != null ? ` style="--fill:${Math.round(fill)}%"` : '';
-      const badge = state === 'actionable' && actionable > 0
+      const badge = (state === 'actionable' || state === 'delivery' || state === 'leftover') && actionable > 0
         ? `<span class="badge">${actionable}</span>`
         : '';
       const ciTip = ciTipCopy(proj.ci);
@@ -2077,11 +4589,343 @@
         </span>`;
     }
 
+    // --- CR Autofix (removable) ---
+    function crMenuHtml(proj, pr, menuOpen) {
+      if (!crAutofixEnabled) return '';
+      const cr = (pr && pr.cr) || proj.cr || {};
+      const state = cr.state || 'empty';
+      const prNumber = pr?.number || cr.prNumber;
+      if (!prNumber) return '';
+
+      const pid = escapeHtml(proj.id);
+      const menuKey = `${proj.id}:${prNumber}`;
+      const busy = state === 'autofixing'
+        || (state === 'reviewing' && cr.autofix?.phase === 'reviewing')
+        || pendingCrAction.has(menuKey)
+        || pendingCrAction.has(proj.id);
+      const openCls = menuOpen != null ? menuOpen : (openCrMenuId === menuKey ? ' open' : '');
+
+      const items = [];
+      const pushItem = ({ action, title, desc, primary, danger, disabled }) => {
+        const cls = [
+          'cr-menu-item',
+          primary ? 'primary' : '',
+          danger ? 'danger' : ''
+        ].filter(Boolean).join(' ');
+        if (disabled) {
+          items.push(`<button type="button" class="${cls}" disabled><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'open-task') {
+          items.push(`<button type="button" class="${cls}" onclick="openCrTask(event, '${pid}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'open-pr') {
+          const url = escapeHtml(pr?.url || cr.prUrl || '#');
+          items.push(`<button type="button" class="${cls}" onclick="window.open('${url}','_blank','noopener,noreferrer')"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'mark-waiting') {
+          items.push(`<button type="button" class="${cls}" onclick="markPrWaiting(event, '${pid}', ${prNumber}, true)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'clear-waiting') {
+          items.push(`<button type="button" class="${cls}" onclick="markPrWaiting(event, '${pid}', ${prNumber}, false)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else {
+          items.push(`<button type="button" class="${cls}" onclick="triggerCrAction(event, '${pid}', '${action}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        }
+      };
+
+      const mine = isMyPr(proj, pr);
+
+      if (state === 'pending' || state === 'ready') {
+        items.push('<div class="cr-menu-hint">Suggested</div>');
+        if (mine) {
+          pushItem({ action: 'review', title: 'Review', desc: '@coderabbitai review — start a review on HEAD', primary: true });
+          items.push('<div class="cr-menu-sep"></div>');
+          pushItem({ action: 'autofix', title: 'Autofix', desc: 'No actionable threads yet', disabled: true });
+        } else {
+          pushItem({ action: 'open-pr', title: 'Open on GitHub', desc: 'Collaborator PR — review there', primary: true });
+          pushItem({ action: 'review', title: 'CR Review', desc: '@coderabbitai review on HEAD' });
+        }
+      } else if (state === 'actionable') {
+        items.push('<div class="cr-menu-hint">Suggested</div>');
+        if (mine) {
+          pushItem({ action: 'autofix', title: 'Autofix', desc: '@coderabbitai autofix — let CR patch threads', primary: true });
+          pushItem({ action: 'review', title: 'Review', desc: 'Re-review HEAD (no autofix)' });
+        } else if (isWaitingOnAuthor(proj.id, prNumber)) {
+          pushItem({
+            action: 'clear-waiting',
+            title: 'Clear waiting',
+            desc: 'Dashboard only — remove the waiting-on-author mark',
+            primary: true
+          });
+          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review HEAD (no autofix)' });
+          items.push('<div class="cr-menu-sep"></div>');
+          pushItem({ action: 'autofix', title: 'Autofix', desc: 'Only if you want CR patching their branch' });
+        } else {
+          pushItem({
+            action: 'mark-waiting',
+            title: 'Mark waiting',
+            desc: 'Dashboard only — waiting on author (nothing posted to GitHub)',
+            primary: true
+          });
+          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review HEAD (no autofix)' });
+          items.push('<div class="cr-menu-sep"></div>');
+          pushItem({ action: 'autofix', title: 'Autofix', desc: 'Only if you want CR patching their branch' });
+        }
+      } else if (state === 'leftover') {
+        items.push('<div class="cr-menu-hint">Suggested</div>');
+        if (mine) {
+          pushItem({ action: 'review', title: 'Review', desc: 'Re-check HEAD — Autofix finished; thread may be stale', primary: true });
+          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Retry autofix if the leftover is still real' });
+        } else if (isWaitingOnAuthor(proj.id, prNumber)) {
+          pushItem({
+            action: 'clear-waiting',
+            title: 'Clear waiting',
+            desc: 'Dashboard only — remove the waiting-on-author mark',
+            primary: true
+          });
+          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-check HEAD' });
+          items.push('<div class="cr-menu-sep"></div>');
+          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
+        } else {
+          pushItem({
+            action: 'mark-waiting',
+            title: 'Mark waiting',
+            desc: 'Dashboard only — waiting on author (nothing posted to GitHub)',
+            primary: true
+          });
+          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-check HEAD' });
+          items.push('<div class="cr-menu-sep"></div>');
+          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
+        }
+      } else if (state === 'delivery') {
+        items.push('<div class="cr-menu-hint">Suggested</div>');
+        if (cr.taskUrl) {
+          pushItem({ action: 'open-task', title: 'Open CR task', desc: 'Push failed — finish or retry in CodeRabbit', primary: true, danger: true });
+          items.push('<div class="cr-menu-sep"></div>');
+        }
+        if (mine) {
+          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Retry only if the delivery issue is fixed', primary: !cr.taskUrl });
+          pushItem({ action: 'review', title: 'Review', desc: 'Re-review current HEAD' });
+        } else if (isWaitingOnAuthor(proj.id, prNumber)) {
+          pushItem({
+            action: 'clear-waiting',
+            title: 'Clear waiting',
+            desc: 'Dashboard only — remove the waiting-on-author mark',
+            primary: !cr.taskUrl
+          });
+          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review current HEAD' });
+          items.push('<div class="cr-menu-sep"></div>');
+          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
+        } else {
+          pushItem({
+            action: 'mark-waiting',
+            title: 'Mark waiting',
+            desc: 'Dashboard only — waiting on author (nothing posted to GitHub)',
+            primary: !cr.taskUrl
+          });
+          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review current HEAD' });
+          items.push('<div class="cr-menu-sep"></div>');
+          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
+        }
+      } else if (state === 'clear') {
+        items.push('<div class="cr-menu-hint">Optional</div>');
+        pushItem({ action: 'review', title: 'Review again', desc: '@coderabbitai review on latest HEAD' });
+        items.push('<div class="cr-menu-sep"></div>');
+        pushItem({ action: 'autofix', title: 'Autofix', desc: 'Nothing actionable', disabled: true });
+      } else if (!busy) {
+        // limited / other — still allow review nudge
+        items.push('<div class="cr-menu-hint">Optional</div>');
+        pushItem({ action: 'review', title: 'Review', desc: '@coderabbitai review on HEAD' });
+      }
+
+      // Open on GitHub always available (skip duplicate if already primary above)
+      const hasOpenPr = items.some((html) => /Open on GitHub/.test(html));
+      if (!hasOpenPr) {
+        if (items.length) items.push('<div class="cr-menu-sep"></div>');
+        pushItem({ action: 'open-pr', title: 'Open on GitHub', desc: 'Focus this PR' });
+      }
+
+      if (busy || !items.length) return '';
+
+      return `<div class="cr-menu${openCls}" data-menu-for="${escapeHtml(menuKey)}">${items.join('')}</div>`;
+    }
+
+    function toggleCrMenu(event, projectId, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = `${projectId}:${prNumber}`;
+      if (!crAutofixEnabled || pendingCrAction.has(key) || pendingCrAction.has(projectId)) return;
+      openCrMenuId = openCrMenuId === key ? null : key;
+      renderProjects(lastProjects);
+    }
+
+    function closeCrMenus() {
+      if (!openCrMenuId) return;
+      openCrMenuId = null;
+      if (lastProjects.length) renderProjects(lastProjects);
+    }
+
+    function openCrTask(event, projectId, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      const project = lastProjects.find((p) => p.id === projectId);
+      const pr = (project?.prs || []).find((p) => p.number === prNumber);
+      const url = pr?.cr?.taskUrl || project?.cr?.taskUrl;
+      openCrMenuId = null;
+      if (!url) {
+        showToast('No CR task URL on this PR');
+        renderProjects(lastProjects);
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+      renderProjects(lastProjects);
+    }
+
+    function markPrWaiting(event, projectId, prNumber, waiting) {
+      event.preventDefault();
+      event.stopPropagation();
+      openCrMenuId = null;
+      setWaitingOnAuthor(projectId, prNumber, waiting);
+      showToast(waiting ? `Marked #${prNumber} waiting on author` : `Cleared waiting on #${prNumber}`);
+      if (lastProjects.length) renderProjects(lastProjects);
+    }
+
+    async function triggerCrAction(event, projectId, action, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = `${projectId}:${prNumber || ''}`;
+      if (!crAutofixEnabled || pendingCrAction.has(key) || pendingCrAction.has(projectId)) return;
+      if (action !== 'autofix' && action !== 'review') return;
+      const project = lastProjects.find((p) => p.id === projectId);
+      if (!project) return;
+      const prNum = prNumber || project.cr?.prNumber;
+      openCrMenuId = null;
+      pendingCrAction.add(key);
+      renderProjects(lastProjects);
+      try {
+        const res = await fetch('/api/cr-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId,
+            action,
+            pr: prNum || undefined
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          showToast(data.error || `${action} failed`);
+        } else {
+          const label = action === 'review' ? 'Review' : 'Autofix';
+          showToast(`${label} posted${data.prNumber ? ` on #${data.prNumber}` : ''}`);
+          const nextCr = action === 'review'
+            ? {
+                ...(project.cr || {}),
+                state: 'reviewing',
+                actionable: 0,
+                tip: 'CodeRabbit review in progress',
+                prNumber: prNum,
+                autofix: { phase: 'reviewing', at: Date.now() }
+              }
+            : {
+                ...(project.cr || {}),
+                state: 'autofixing',
+                actionable: 0,
+                tip: 'CodeRabbit Autofix running',
+                prNumber: prNum,
+                autofix: { phase: 'running', at: Date.now() }
+              };
+          project.cr = nextCr;
+          if (Array.isArray(project.prs)) {
+            project.prs = project.prs.map((p) =>
+              p.number === prNum ? { ...p, cr: { ...p.cr, ...nextCr, prNumber: prNum } } : p
+            );
+          }
+        }
+      } catch (err) {
+        showToast(`${action} failed: ` + err.message);
+      } finally {
+        pendingCrAction.delete(key);
+        renderProjects(lastProjects);
+        fetchStatus();
+      }
+    }
+
+    document.addEventListener('click', () => closeCrMenus());
+    // --- end CR Autofix ---
+
     function rateLimitBannerKey(rl) {
       const parts = [];
       if (rl?.private?.until) parts.push(`p:${rl.private.until}`);
       if (rl?.oss?.until) parts.push(`o:${rl.oss.until}`);
       return parts.join('|') || '';
+    }
+
+    function apiLimitBannerKey(al) {
+      const parts = [];
+      if (al?.restUntil) parts.push(`rest:${al.restUntil}`);
+      if (al?.graphqlUntil) parts.push(`gq:${al.graphqlUntil}`);
+      return parts.join('|') || '';
+    }
+
+    function renderApiLimitBanner(al) {
+      const wrap = document.getElementById('api-banner-wrap');
+      const el = document.getElementById('api-banner');
+      if (!wrap || !el) return;
+
+      const restUntil = al?.restUntil && new Date(al.restUntil).getTime() > Date.now()
+        ? al.restUntil
+        : null;
+      const gqlUntil = al?.graphqlUntil && new Date(al.graphqlUntil).getTime() > Date.now()
+        ? al.graphqlUntil
+        : null;
+
+      if (!restUntil && !gqlUntil) {
+        wrap.classList.remove('visible');
+        el.innerHTML = '';
+        return;
+      }
+
+      const key = apiLimitBannerKey({ restUntil, graphqlUntil: gqlUntil });
+      try {
+        if (sessionStorage.getItem('api-banner-dismiss') === key) {
+          wrap.classList.remove('visible');
+          return;
+        }
+      } catch { /* ignore */ }
+
+      const pills = [];
+      if (restUntil) {
+        pills.push(`<span class="bad">REST · paused until ${escapeHtml(formatClock(restUntil))}</span>`);
+      } else {
+        pills.push('<span class="ok">REST · ok (PR/CI still updating)</span>');
+      }
+      if (gqlUntil) {
+        pills.push(`<span class="bad">GraphQL · CR details until ${escapeHtml(formatClock(gqlUntil))}</span>`);
+      } else {
+        pills.push('<span class="ok">GraphQL · ok</span>');
+      }
+
+      const title = restUntil
+        ? 'GitHub API rate-limited — PR/CI chips may be stale'
+        : 'GitHub GraphQL throttled — CodeRabbit details paused';
+      const hint = restUntil
+        ? 'Ping the agent if this hangs past the time above.'
+        : 'Open PR and CI borders still refresh via REST.';
+
+      el.innerHTML = `
+        <span aria-hidden="true">⚠️</span>
+        <div class="body">
+          <strong>${title}</strong>
+          <div>${hint}</div>
+          <div class="pills">${pills.join('')}</div>
+        </div>
+        <button type="button" onclick="dismissApiBanner()">Dismiss</button>`;
+      apiBannerDismissKey = key;
+      wrap.classList.add('visible');
+    }
+
+    function dismissApiBanner() {
+      const wrap = document.getElementById('api-banner-wrap');
+      if (wrap) wrap.classList.remove('visible');
+      try {
+        if (apiBannerDismissKey) sessionStorage.setItem('api-banner-dismiss', apiBannerDismissKey);
+      } catch { /* ignore */ }
     }
 
     function renderRateLimitBanner(rl) {
@@ -2251,7 +5095,11 @@
       openLinkMenuId = willOpen ? projectId : null;
     }
 
-    document.addEventListener('click', () => closeLinkMenus());
+    document.addEventListener('click', () => {
+      closeLinkMenus();
+      closeGlobalLinksMenu();
+      closeServersMenu();
+    });
 
     // Links open server-side so the tab lands in the configured space's profile
     // instead of whichever profile happens to be focused.
@@ -2545,7 +5393,10 @@
       }, anyStarting ? 800 : 2500);
     }
 
+    loadNotifyPrefs();
+    loadPrMarks();
     loadArcSpaces();
+    loadLinkIcons();
     fetchStatus();
     schedulePoll();
   </script>

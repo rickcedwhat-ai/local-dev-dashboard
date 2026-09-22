@@ -1,0 +1,14 @@
+[
+  {
+    "id": "layout-sidebar-detail",
+    "file": "layout-sidebar-detail.html",
+    "title": "Sidebar + detail layout",
+    "desc": "Reference mock — now shipping in the live dashboard (sidebar + PR cards with CI comet / CR chip). Keep for layout variants."
+  },
+  {
+    "id": "gh-extension",
+    "file": "gh-extension.html",
+    "title": "GitHub extension × dashboard",
+    "desc": "Extension rabbit menu, still-valid, focus sync, agent handoff — and how it hooks to localhost:4000. Parked idea (#2)."
+  }
+]

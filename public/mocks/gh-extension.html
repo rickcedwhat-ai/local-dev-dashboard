@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GitHub extension · dashboard mock</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --bright: #f0f6fc;
+    --muted: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --orange: #ffa657;
+    --red: #ff7b72;
+    --gh-bg: #0d1117;
+    --gh-canvas: #010409;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 28px 24px 100px; line-height: 1.45;
+  }
+  h1 { font-size: 22px; color: var(--bright); font-weight: 650; }
+  .lede { color: var(--muted); font-size: 13px; max-width: 820px; margin: 8px 0 22px; }
+  .lede code, .chip-code {
+    font-family: var(--mono); font-size: 11px;
+    background: #21262d; padding: 1px 6px; border-radius: 4px; color: #79b8ff;
+  }
+
+  .tabs {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px;
+  }
+  .tabs button {
+    background: #21262d; border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer;
+  }
+  .tabs button.active {
+    background: rgba(88, 166, 255, 0.15);
+    border-color: rgba(88, 166, 255, 0.45);
+    color: #79b8ff;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .ideas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px; margin-bottom: 8px;
+  }
+  .idea {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .idea .tag {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    padding: 2px 7px; border-radius: 999px; margin-bottom: 8px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .idea .tag.logged { color: #79b8ff; border-color: rgba(88, 166, 255, 0.4); }
+  .idea .tag.new { color: var(--orange); border-color: rgba(255, 166, 87, 0.45); }
+  .idea .tag.hook { color: var(--green); border-color: rgba(63, 185, 80, 0.4); }
+  .idea h3 { font-size: 13px; color: var(--bright); font-weight: 650; margin-bottom: 4px; }
+  .idea p { font-size: 12px; color: var(--muted); }
+
+  .arch {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px;
+    align-items: stretch; margin: 10px 0 22px; max-width: 920px;
+  }
+  .arch-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .arch-box h3 { font-size: 13px; color: var(--bright); margin-bottom: 8px; }
+  .arch-box ul { margin-left: 16px; font-size: 12px; color: var(--muted); }
+  .arch-box li { margin: 4px 0; }
+  .arch-arrow {
+    display: flex; flex-direction: column; justify-content: center;
+    align-items: center; gap: 8px; color: var(--muted); font-size: 11px;
+    font-family: var(--mono); min-width: 90px;
+  }
+  .arch-arrow span {
+    border: 1px dashed rgba(88, 166, 255, 0.35);
+    background: rgba(88, 166, 255, 0.08);
+    color: #79b8ff; padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+  }
+
+  .scene-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 18px; align-items: start;
+  }
+  .scene-label {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    margin-bottom: 8px; letter-spacing: 0.02em;
+  }
+  .scene-note {
+    font-size: 12px; color: var(--muted); margin-top: 8px; max-width: 420px;
+  }
+
+  /* Fake GitHub PR chrome */
+  .gh-frame {
+    background: var(--gh-canvas);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: visible;
+    position: relative;
+  }
+  .gh-top {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    background: #0d1117; font-size: 12px; color: var(--muted);
+  }
+  .gh-top strong { color: var(--bright); font-weight: 600; }
+  .gh-body { padding: 12px; }
+  .gh-thread {
+    border: 1px solid var(--border); border-radius: 8px;
+    background: #0d1117; padding: 10px; margin-bottom: 10px;
+  }
+  .gh-thread .who { font-size: 12px; font-weight: 650; color: var(--bright); }
+  .gh-thread .who span { color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .gh-thread .msg { font-size: 12px; color: var(--text); margin-top: 6px; }
+  .gh-composer {
+    display: flex; gap: 8px; align-items: flex-start; margin-top: 8px;
+  }
+  .gh-composer textarea {
+    flex: 1; min-height: 54px; resize: vertical;
+    background: #0d1117; border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 8px 10px;
+    font: inherit; font-size: 12px;
+  }
+  .gh-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+  .ext-btn {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1px solid rgba(255, 123, 114, 0.45);
+    background: rgba(255, 123, 114, 0.12);
+    color: #ffb4a8; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; flex: none;
+  }
+  .ext-btn:hover, .ext-btn.open {
+    background: rgba(255, 123, 114, 0.22);
+    border-color: rgba(255, 123, 114, 0.7);
+  }
+  .ext-btn.dash {
+    border-color: rgba(88, 166, 255, 0.45);
+    background: rgba(88, 166, 255, 0.12);
+    color: #79b8ff;
+  }
+
+  .menu {
+    position: absolute; z-index: 5;
+    width: 260px;
+    background: #161b22; border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+    padding: 6px; display: none;
+  }
+  .menu.open { display: block; }
+  .menu .hdr {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+  }
+  .menu .hdr strong { font-size: 11px; color: var(--bright); }
+  .menu .status {
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 6px; border-radius: 999px;
+    border: 1px solid rgba(255, 166, 87, 0.4); color: var(--orange);
+  }
+  .menu .status.ok {
+    border-color: rgba(63, 185, 80, 0.4); color: var(--green);
+  }
+  .menu .status.busy {
+    border-color: rgba(88, 166, 255, 0.4); color: #79b8ff;
+  }
+  .menu button.item {
+    width: 100%; text-align: left; background: transparent;
+    border: 0; color: var(--text); padding: 8px 8px; border-radius: 6px;
+    cursor: pointer; font-size: 12px;
+  }
+  .menu button.item:hover { background: #21262d; }
+  .menu button.item .desc {
+    display: block; font-size: 11px; color: var(--muted); margin-top: 2px;
+  }
+  .menu .sep { height: 1px; background: var(--border); margin: 4px 6px; }
+  .menu .foot {
+    padding: 6px 8px; font-size: 10px; color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* Mini dashboard card */
+  .dash-card {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 12px; position: relative;
+  }
+  .dash-card.focus {
+    border-color: rgba(88, 166, 255, 0.7);
+    box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.2), 0 0 24px rgba(88, 166, 255, 0.12);
+  }
+  .dash-card .name { font-size: 14px; font-weight: 650; color: var(--bright); }
+  .dash-card .path { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip {
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px;
+    border: 1.5px solid transparent;
+  }
+  .chip.gh { color: #8b949e; border-color: rgba(139,148,158,0.4); }
+  .chip.cr {
+    color: #ffb4a8; border-color: rgba(255,123,114,0.45);
+    background: rgba(255,123,114,0.1);
+  }
+  .chip.cr.busy {
+    color: #79b8ff; border-color: rgba(88,166,255,0.45);
+    background: rgba(88,166,255,0.1);
+  }
+  .focus-pill {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    color: #79b8ff; background: rgba(88,166,255,0.15);
+    border: 1px solid rgba(88,166,255,0.35);
+    padding: 2px 7px; border-radius: 999px;
+  }
+
+  .toast {
+    position: absolute; left: 12px; right: 12px; bottom: 12px;
+    background: #1c2128; border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 11px;
+    color: var(--text); display: none; z-index: 6;
+  }
+  .toast.show { display: block; }
+  .toast strong { color: var(--bright); }
+
+  .flow {
+    max-width: 820px; margin-top: 8px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--card); overflow: hidden;
+  }
+  .flow row, .flow .row {
+    display: grid; grid-template-columns: 120px 1fr;
+    gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .flow .row:last-child { border-bottom: 0; }
+  .flow .k { font-family: var(--mono); font-size: 10px; color: #79b8ff; padding-top: 2px; }
+  .flow .v { color: var(--muted); }
+  .flow .v strong { color: var(--bright); font-weight: 600; }
+
+  .verdict {
+    max-width: 820px; margin-top: 18px; padding: 12px 14px;
+    border-radius: 10px; border: 1px solid rgba(210, 153, 34, 0.35);
+    background: rgba(210, 153, 34, 0.08); font-size: 13px; color: #e3b341;
+  }
+  .verdict strong { color: #ffe8a3; }
+</style>
+</head>
+<body>
+  <h1>GitHub extension × Local Dev Dashboard</h1>
+  <p class="lede">
+    Exploratory mocks for issue <code>#2</code>. Extension = thin GitHub remote;
+    dashboard = control plane (<code>localhost:4000</code>, <code>gh</code>, CR state).
+    Click the rabbit buttons in the scenes.
+  </p>
+
+  <div class="tabs" id="tabs">
+    <button class="active" data-tab="ideas">Ideas</button>
+    <button data-tab="hooks">Dashboard hooks</button>
+    <button data-tab="composer">Composer menu</button>
+    <button data-tab="thread">Thread · still valid?</button>
+    <button data-tab="focus">Focus sync</button>
+    <button data-tab="handoff">Agent handoff</button>
+  </div>
+
+  <!-- IDEAS -->
+  <section class="panel active" id="tab-ideas">
+    <div class="ideas">
+      <div class="idea">
+        <span class="tag logged">logged · #2</span>
+        <h3>Composer / thread rabbit menu</h3>
+        <p>Small 🐰 next to PR comment boxes. Menu: Review, Autofix, Ask if still valid, Open dashboard. Insert or post — don’t rebuild CR UI.</p>
+      </div>
+      <div class="idea">
+        <span class="tag logged">logged · #2</span>
+        <h3>Ask CR if still valid</h3>
+        <p>Confirmed 2026-09-21: plain “is this still valid?” (no @, no resolve language) → real re-check + auto-resolve. Best first high-value action.</p>
+      </div>
+      <div class="idea">
+        <span class="tag logged">logged · #2</span>
+        <h3>POST /api/cr-action</h3>
+        <p>Extension sends <code class="chip-code">{repo, pr, action, threadUrl?}</code>. Dashboard posts via <code class="chip-code">gh</code> as rickcedwhat-ai — secrets stay local.</p>
+      </div>
+      <div class="idea">
+        <span class="tag logged">logged · #2</span>
+        <h3>Focus sync</h3>
+        <p>On PR page load, ping dashboard so the matching project card / CR strip lights up. Makes multi-repo boards feel alive.</p>
+      </div>
+      <div class="idea">
+        <span class="tag logged">logged · #2</span>
+        <h3>Optimistic Autofix</h3>
+        <p>Trigger from GH or dashboard → 🐰 strip immediately; settle from autofix status comment + unresolved threads.</p>
+      </div>
+      <div class="idea">
+        <span class="tag logged">logged · #2</span>
+        <h3>Status read-back</h3>
+        <p>Poll <code class="chip-code">/api/status</code> and show CR/agent chip in the menu header (actionable / reviewing / clear).</p>
+      </div>
+      <div class="idea">
+        <span class="tag logged">logged · #2</span>
+        <h3>Local agent handoff</h3>
+        <p>Copy prompt packet: file + hunk + thread text + “reply without @”. No CR call — Cursor/Antigravity does the fix.</p>
+      </div>
+      <div class="idea">
+        <span class="tag new">new</span>
+        <h3>Insert first, post second</h3>
+        <p>Default: fill the reply box so you can edit. Hold ⌥ / “Post now” for one-click. Safer than silent posts.</p>
+      </div>
+      <div class="idea">
+        <span class="tag new">new</span>
+        <h3>Batch “still valid?”</h3>
+        <p>After Autofix leaves leftovers, one action walks unresolved CR threads and asks the soft question on each (rate-limit aware).</p>
+      </div>
+      <div class="idea">
+        <span class="tag new">new</span>
+        <h3>Open matching dashboard card</h3>
+        <p>Deep-link <code class="chip-code">localhost:4000#project=…</code> or scroll/highlight the card. Escape hatch when GH UI is noisy.</p>
+      </div>
+      <div class="idea">
+        <span class="tag new">new</span>
+        <h3>Notify bridge</h3>
+        <p>Extension hears dashboard notify events (or polls) and can flash badge / optional OS ping while you’re parked on the PR tab.</p>
+      </div>
+      <div class="idea">
+        <span class="tag new">new</span>
+        <h3>Thread list side panel</h3>
+        <p>Optional later: list unresolved CR threads from dashboard GraphQL truth, jump-to-thread. Bigger than v1 — discuss only.</p>
+      </div>
+    </div>
+    <div class="verdict">
+      <strong>Worth building if…</strong> you hit “still valid?” / Review / Autofix / copy-for-agent more than a few times a day.
+      <strong>Skip if…</strong> dashboard CR menu + local LLM already covers it and you rarely live in the GH comment box.
+      Smallest valuable v1: <em>thread button → insert “is this still valid?”</em> + optional dashboard focus ping.
+    </div>
+  </section>
+
+  <!-- HOOKS -->
+  <section class="panel" id="tab-hooks">
+    <div class="arch">
+      <div class="arch-box">
+        <h3>Extension (GitHub tab)</h3>
+        <ul>
+          <li>Knows owner/repo/PR + focused thread URL</li>
+          <li>Injects 🐰 next to composers</li>
+          <li>No <code class="chip-code">gh</code>, no tokens</li>
+          <li>Host: <code class="chip-code">http://localhost:4000/*</code></li>
+        </ul>
+      </div>
+      <div class="arch-arrow">
+        <span>POST /api/cr-action</span>
+        <span>POST /api/focus</span>
+        <span>GET /api/status</span>
+      </div>
+      <div class="arch-box">
+        <h3>Dashboard (control plane)</h3>
+        <ul>
+          <li>Posts comments via authenticated <code class="chip-code">gh</code></li>
+          <li>Owns CR classification + strips</li>
+          <li>Optimistic Autofix / Review UI</li>
+          <li>Notify prefs + sounds</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="row">
+        <div class="k">cr-action</div>
+        <div class="v"><strong>review | autofix | still-valid | resolve-safe?</strong> — dashboard chooses exact comment text / policy (never put @resolve in the extension).</div>
+      </div>
+      <div class="row">
+        <div class="k">focus</div>
+        <div class="v"><strong>{ repo, pr, threadUrl? }</strong> → match project registry → highlight card / set “watching this PR”.</div>
+      </div>
+      <div class="row">
+        <div class="k">status</div>
+        <div class="v">Read-only mirror for menu chip. Extension does <em>not</em> re-implement CR state machines.</div>
+      </div>
+      <div class="row">
+        <div class="k">handoff</div>
+        <div class="v">Can be extension-only (clipboard) or dashboard-built packet returned from an API.</div>
+      </div>
+      <div class="row">
+        <div class="k">don’t</div>
+        <div class="v">Secrets in the extension · duplicate GraphQL classification · silent top-level <code class="chip-code">@coderabbitai resolve</code>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPOSER -->
+  <section class="panel" id="tab-composer">
+    <div class="scene-grid">
+      <div>
+        <div class="scene-label">1 · PR conversation composer</div>
+        <div class="gh-frame" id="scene-composer">
+          <div class="gh-top">
+            <strong>polyglot-wordle</strong> · Pull request #35 · Conversation
+          </div>
+          <div class="gh-body">
+            <div class="gh-thread">
+              <div class="who">coderabbitai <span>bot · summarize</span></div>
+              <div class="msg">Walkthrough + finishing touches. 6 actionable comments in the last review.</div>
+            </div>
+            <div class="gh-composer">
+              <textarea id="composer-ta" placeholder="Add a comment…"></textarea>
+              <div class="gh-actions" style="flex-direction:column; align-items:stretch;">
+                <button type="button" class="ext-btn" id="composer-btn" title="Local Dev Dashboard">🐰</button>
+              </div>
+            </div>
+            <div style="margin-top:8px; display:flex; gap:6px;">
+              <button type="button" style="background:#238636;border:0;color:#fff;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;">Comment</button>
+              <button type="button" style="background:#21262d;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 12px;font-size:12px;">Close with comment</button>
+            </div>
+          </div>
+          <div class="menu" id="composer-menu" style="top:118px; right:18px;">
+            <div class="hdr">
+              <strong>Local Dev · CR</strong>
+              <span class="status" id="composer-status">actionable · 6</span>
+            </div>
+            <button type="button" class="item" data-act="review">Review<span class="desc">@coderabbitai review — via dashboard</span></button>
+            <button type="button" class="item" data-act="autofix">Autofix<span class="desc">Optimistic strip on dashboard</span></button>
+            <div class="sep"></div>
+            <button type="button" class="item" data-act="open-dash">Open dashboard card<span class="desc">localhost:4000 → polyglot-wordle</span></button>
+            <div class="foot">posts as rickcedwhat-ai · no secrets here</div>
+          </div>
+          <div class="toast" id="composer-toast"></div>
+        </div>
+        <p class="scene-note">Top-level menu: launch Review / Autofix through the dashboard so optimistic UI + gh identity stay centralized.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- THREAD -->
+  <section class="panel" id="tab-thread">
+    <div class="scene-grid">
+      <div>
+        <div class="scene-label">2 · Review thread (highest value)</div>
+        <div class="gh-frame" id="scene-thread">
+          <div class="gh-top">
+            <strong>Files changed</strong> · android/…/colors.xml · conversation
+          </div>
+          <div class="gh-body">
+            <div class="gh-thread">
+              <div class="who">coderabbitai <span>bot</span></div>
+              <div class="msg">Missing <code class="chip-code">colorPrimary</code> resources referenced by AppTheme…</div>
+              <div class="gh-composer" style="margin-top:10px;">
+                <textarea id="thread-ta" placeholder="Reply…"></textarea>
+                <button type="button" class="ext-btn" id="thread-btn" title="Ask CR / handoff">🐰</button>
+              </div>
+            </div>
+          </div>
+          <div class="menu" id="thread-menu" style="top:150px; right:16px;">
+            <div class="hdr">
+              <strong>Thread actions</strong>
+              <span class="status">unresolved</span>
+            </div>
+            <button type="button" class="item" data-act="still-valid">Ask if still valid<span class="desc">Insert: “is this still valid?” — no @</span></button>
+            <button type="button" class="item" data-act="still-valid-post">Ask + post now<span class="desc">Dashboard posts on this thread URL</span></button>
+            <div class="sep"></div>
+            <button type="button" class="item" data-act="handoff">Copy for local agent<span class="desc">Hunk + thread + reply-without-@ rules</span></button>
+            <button type="button" class="item" data-act="batch">Batch still-valid…<span class="desc">All unresolved CR threads on this PR</span></button>
+            <div class="foot">never inserts @coderabbitai resolve</div>
+          </div>
+          <div class="toast" id="thread-toast"></div>
+        </div>
+        <p class="scene-note">This is the “worth it” scene — one click beats remembering the anti-pattern rules every time.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOCUS -->
+  <section class="panel" id="tab-focus">
+    <div class="scene-grid">
+      <div>
+        <div class="scene-label">3a · You’re on the PR in Arc</div>
+        <div class="gh-frame">
+          <div class="gh-top"><strong>github.com</strong>/rickcedwhat/polyglot-wordle/pull/35</div>
+          <div class="gh-body" style="font-size:12px; color:var(--muted);">
+            Extension on load:<br>
+            <code class="chip-code">POST /api/focus { repo, pr: 35 }</code>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="scene-label">3b · Dashboard reacts</div>
+        <div class="dash-card focus" id="focus-card">
+          <span class="focus-pill">WATCHING</span>
+          <div class="name">polyglot-wordle</div>
+          <div class="path">~/Documents/Projects/polyglot-wordle · #35</div>
+          <div class="chips">
+            <span class="chip gh">GitHub</span>
+            <span class="chip cr" id="focus-cr">🐰 CR · 6</span>
+            <span class="chip" style="border-color:rgba(88,166,255,0.35);color:#79b8ff;">Live</span>
+          </div>
+        </div>
+        <p class="scene-note">Same focus channel can clear when you leave the PR tab (visibility / unload ping).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HANDOFF -->
+  <section class="panel" id="tab-handoff">
+    <div class="scene-grid">
+      <div>
+        <div class="scene-label">4 · Local agent packet (no CR)</div>
+        <div class="gh-frame" id="scene-handoff">
+          <div class="gh-top"><strong>Copy for Cursor / Antigravity</strong></div>
+          <div class="gh-body">
+            <pre id="handoff-pre" style="font-family:var(--mono);font-size:11px;color:#adbac7;white-space:pre-wrap;background:#010409;border:1px solid var(--border);border-radius:8px;padding:10px;min-height:140px;">Click 🐰 → Copy for local agent</pre>
+            <div style="margin-top:8px;">
+              <button type="button" class="ext-btn dash" id="handoff-btn">🐰</button>
+            </div>
+          </div>
+          <div class="menu" id="handoff-menu" style="top:70px; left:52px;">
+            <div class="hdr"><strong>Handoff</strong><span class="status ok">clipboard</span></div>
+            <button type="button" class="item" data-act="copy-packet">Copy fix prompt<span class="desc">Includes: still-valid reply rules</span></button>
+            <button type="button" class="item" data-act="copy-thread">Copy thread URL only</button>
+          </div>
+          <div class="toast" id="handoff-toast"></div>
+        </div>
+        <p class="scene-note">Useful even if you never POST through the dashboard — pure friction reducer for the local-LLM loop you already prefer.</p>
+      </div>
+    </div>
+  </section>
+
+<script>
+  const tabs = document.getElementById('tabs');
+  tabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-tab]');
+    if (!btn) return;
+    tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${btn.dataset.tab}`));
+  });
+
+  function bindMenu(btnId, menuId, toastId, handlers) {
+    const btn = document.getElementById(btnId);
+    const menu = document.getElementById(menuId);
+    const toast = document.getElementById(toastId);
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = !menu.classList.contains('open');
+      document.querySelectorAll('.menu').forEach((m) => m.classList.remove('open'));
+      document.querySelectorAll('.ext-btn').forEach((b) => b.classList.remove('open'));
+      if (open) {
+        menu.classList.add('open');
+        btn.classList.add('open');
+      }
+    });
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('button.item');
+      if (!item) return;
+      const act = item.dataset.act;
+      handlers[act]?.();
+      menu.classList.remove('open');
+      btn.classList.remove('open');
+    });
+    function showToast(html) {
+      toast.innerHTML = html;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+    return showToast;
+  }
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.menu').forEach((m) => m.classList.remove('open'));
+    document.querySelectorAll('.ext-btn').forEach((b) => b.classList.remove('open'));
+  });
+
+  const toastComposer = bindMenu('composer-btn', 'composer-menu', 'composer-toast', {
+    review() {
+      toastComposer('<strong>→ dashboard</strong> POST /api/cr-action { action: "review" } · optimistic reviewing strip');
+      const st = document.getElementById('composer-status');
+      st.textContent = 'reviewing';
+      st.className = 'status busy';
+    },
+    autofix() {
+      toastComposer('<strong>→ dashboard</strong> POST /api/cr-action { action: "autofix" } · 🐰 autofixing strip');
+    },
+    'open-dash'() {
+      toastComposer('<strong>Open</strong> http://localhost:4000/#polyglot-wordle');
+    }
+  });
+
+  const toastThread = bindMenu('thread-btn', 'thread-menu', 'thread-toast', {
+    'still-valid'() {
+      const ta = document.getElementById('thread-ta');
+      ta.value = 'is this still valid?';
+      ta.focus();
+      toastThread('<strong>Inserted</strong> (no @coderabbitai, no resolve language) — you hit Comment');
+    },
+    'still-valid-post'() {
+      document.getElementById('thread-ta').value = 'is this still valid?';
+      toastThread('<strong>→ dashboard</strong> POST /api/cr-action { action: "still-valid", threadUrl }');
+    },
+    handoff() {
+      toastThread('<strong>Clipboard</strong> prompt packet ready for Cursor');
+    },
+    batch() {
+      toastThread('<strong>Batch</strong> would walk unresolved CR threads (rate-limit aware) — discuss before building');
+    }
+  });
+
+  const packet = `Fix this CodeRabbit finding on polyglot-wordle #35.
+
+File: android/app/src/main/res/values/colors.xml
+Thread: https://github.com/…/pull/35#discussion_r…
+
+Finding:
+Missing colorPrimary / colorPrimaryDark / colorAccent for AppTheme.
+
+After you fix:
+- Reply on the thread WITHOUT @coderabbitai
+- Do NOT say resolve/approve
+- Prefer: "is this still valid?"`;
+
+  const toastHandoff = bindMenu('handoff-btn', 'handoff-menu', 'handoff-toast', {
+    'copy-packet'() {
+      document.getElementById('handoff-pre').textContent = packet;
+      toastHandoff('<strong>Copied</strong> (mock) — paste into Cursor / Antigravity');
+    },
+    'copy-thread'() {
+      document.getElementById('handoff-pre').textContent = 'https://github.com/rickcedwhat/polyglot-wordle/pull/35#discussion_rEXAMPLE';
+      toastHandoff('<strong>Thread URL</strong> copied');
+    }
+  });
+</script>
+</body>
+</html>
