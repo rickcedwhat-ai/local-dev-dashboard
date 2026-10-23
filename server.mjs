@@ -603,7 +603,7 @@ function resolveProjectForAgent(body = {}) {
   }
   if (directory) {
     const dir = path.resolve(String(directory));
-    const byDir = config.projects.find((p) => path.resolve(p.directory || '') === dir);
+    const byDir = config.projects.find((p) => p.directory && path.resolve(p.directory) === dir);
     if (byDir) return byDir;
   }
   if (repo) {
