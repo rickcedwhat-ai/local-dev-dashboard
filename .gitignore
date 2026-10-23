@@ -1,4 +1,13 @@
-node_modules/
 projects.json
+cr-review-queue.json
+github-cache.json
+github-cache.json.tmp
 *.log
 .DS_Store
+node_modules/
+
+recent-chats.json
+recent-chats.json.tmp
+
+pr-marks.json
+pr-marks.json.tmp

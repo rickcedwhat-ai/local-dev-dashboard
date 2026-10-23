@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Issues · Up next queue mock</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --bright: #f0f6fc;
+    --muted: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --orange: #ffa657;
+    --red: #ff7b72;
+    --yellow: #e3b341;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    min-height: 100vh; line-height: 1.45;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 18px 18px 64px; }
+  h1 { font-size: 20px; color: var(--bright); font-weight: 650; }
+  .lede { font-size: 13px; color: var(--muted); margin: 6px 0 16px; max-width: 820px; }
+  .note {
+    font-size: 12px; color: var(--muted); margin-bottom: 16px;
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); max-width: 820px;
+  }
+  .note strong { color: var(--bright); }
+
+  .shell {
+    display: grid; grid-template-columns: 220px 1fr;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: #010409; overflow: hidden; min-height: 560px;
+  }
+  .side { border-right: 1px solid var(--border); background: #0d1117; }
+  .side-head { padding: 12px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .side-item {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: 0; color: var(--text);
+    padding: 10px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .side-item:hover { background: #161b22; }
+  .side-item.active {
+    background: #161b22; border-left-color: var(--blue); color: var(--bright);
+  }
+  .side-item .sub { display: block; font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+
+  .main { padding: 16px 18px 20px; min-width: 0; }
+  .head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .head h2 { font-size: 16px; color: var(--bright); font-weight: 650; }
+  .head p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn {
+    background: #21262d; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .btn.primary { border-color: rgba(88,166,255,0.45); color: #79b8ff; background: rgba(88,166,255,0.12); }
+
+  .cols {
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 12px;
+  }
+  @media (max-width: 880px) { .shell { grid-template-columns: 1fr; } .cols { grid-template-columns: 1fr; } }
+
+  .panel {
+    border: 1px solid var(--border); border-radius: 10px; background: var(--card);
+    overflow: hidden; min-height: 380px;
+  }
+  .panel-head {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel-head span { font-weight: 600; letter-spacing: 0; text-transform: none; color: #8b949e; }
+
+  .row {
+    display: grid; grid-template-columns: 22px 28px 1fr auto; gap: 8px; align-items: start;
+    padding: 10px 12px; border-bottom: 1px solid #21262d; cursor: grab;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row.dragging { opacity: 0.4; }
+  .row.drag-over { box-shadow: inset 0 2px 0 0 var(--blue); }
+  .rank {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    width: 22px; text-align: right; padding-top: 2px;
+  }
+  .grip { color: #484f58; user-select: none; padding-top: 1px; }
+  .title { font-size: 13px; color: var(--bright); font-weight: 600; }
+  .meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px 10px; }
+  .meta .proj { color: #79b8ff; }
+  .meta .num { font-family: var(--mono); }
+  .go {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 650; cursor: pointer;
+  }
+  .go:hover { color: var(--bright); border-color: #484f58; }
+
+  .pool .row { grid-template-columns: 18px 1fr auto; cursor: default; }
+  .pool .row .add {
+    background: transparent; border: 1px dashed var(--border); color: var(--muted);
+    border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 650; cursor: pointer;
+  }
+  .pool .row .add:hover { color: #79b8ff; border-color: rgba(88,166,255,0.45); }
+
+  .footer-hint {
+    margin-top: 12px; font-size: 11px; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1>Mock B — Cross-project “Up next”</h1>
+    <p class="lede">
+      A global ordered queue across registered repos. Pull open issues in, drag to prioritize,
+      open GitHub or jump to the project card. This is the “what should I work on?” surface.
+    </p>
+    <div class="note">
+      <strong>Best for:</strong> multi-project weeks ·
+      <strong>Order lives locally</strong> (not a GitHub Project) ·
+      Left nav item sits above projects. Drag the queue; click <em>+ queue</em> on the right.
+    </div>
+
+    <div class="shell">
+      <aside class="side">
+        <div class="side-head">Navigate</div>
+        <button type="button" class="side-item active">
+          Up next
+          <span class="sub">4 queued · manual order</span>
+        </button>
+        <button type="button" class="side-item">
+          local-dev-dashboard
+          <span class="sub">2 open PRs</span>
+        </button>
+        <button type="button" class="side-item">
+          career-hub
+          <span class="sub">CI passing</span>
+        </button>
+        <button type="button" class="side-item">
+          BP-Order-Manager
+          <span class="sub">1 failing PR</span>
+        </button>
+      </aside>
+
+      <main class="main">
+        <div class="head">
+          <div>
+            <h2>Up next</h2>
+            <p>Your personal stack — not synced to GitHub Projects.</p>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn">Refresh issues</button>
+            <button type="button" class="btn primary">Assigned to me only</button>
+          </div>
+        </div>
+
+        <div class="cols">
+          <section class="panel">
+            <div class="panel-head">Queue <span>drag to reorder</span></div>
+            <div id="queue">
+              <div class="row" draggable="true" data-id="ldd-38">
+                <span class="rank">1</span>
+                <span class="grip">⋮⋮</span>
+                <div>
+                  <div class="title">Show GitHub issues with manual priority order</div>
+                  <div class="meta"><span class="proj">local-dev-dashboard</span><span class="num">#38</span><span>enhancement</span></div>
+                </div>
+                <button type="button" class="go">Open</button>
+              </div>
+              <div class="row" draggable="true" data-id="bp-214">
+                <span class="rank">2</span>
+                <span class="grip">⋮⋮</span>
+                <div>
+                  <div class="title">Kitchen display desync after partial refund</div>
+                  <div class="meta"><span class="proj">BP-Order-Manager</span><span class="num">#214</span><span>bug</span></div>
+                </div>
+                <button type="button" class="go">Open</button>
+              </div>
+              <div class="row" draggable="true" data-id="ch-91">
+                <span class="rank">3</span>
+                <span class="grip">⋮⋮</span>
+                <div>
+                  <div class="title">Pipeline: master resume cards missing after deploy</div>
+                  <div class="meta"><span class="proj">career-hub</span><span class="num">#91</span><span>bug</span></div>
+                </div>
+                <button type="button" class="go">Open</button>
+              </div>
+              <div class="row" draggable="true" data-id="ldd-41">
+                <span class="rank">4</span>
+                <span class="grip">⋮⋮</span>
+                <div>
+                  <div class="title">Sticky last-alert banner when sound fires off-tab</div>
+                  <div class="meta"><span class="proj">local-dev-dashboard</span><span class="num">#41</span><span>enhancement</span></div>
+                </div>
+                <button type="button" class="go">Open</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel pool">
+            <div class="panel-head">Available <span>from open issues</span></div>
+            <div id="pool">
+              <div class="row" data-id="ldd-29">
+                <span class="grip">·</span>
+                <div>
+                  <div class="title">CI notify uses wrong PR when CR quieted</div>
+                  <div class="meta"><span class="proj">local-dev-dashboard</span><span class="num">#29</span></div>
+                </div>
+                <button type="button" class="add">+ queue</button>
+              </div>
+              <div class="row" data-id="bp-198">
+                <span class="grip">·</span>
+                <div>
+                  <div class="title">Grafana: add refund latency panel</div>
+                  <div class="meta"><span class="proj">BP-Order-Manager</span><span class="num">#198</span></div>
+                </div>
+                <button type="button" class="add">+ queue</button>
+              </div>
+              <div class="row" data-id="ch-77">
+                <span class="grip">·</span>
+                <div>
+                  <div class="title">FAB z-index behind ZipRecruiter chrome</div>
+                  <div class="meta"><span class="proj">career-hub</span><span class="num">#77</span></div>
+                </div>
+                <button type="button" class="add">+ queue</button>
+              </div>
+              <div class="row" data-id="ldd-12">
+                <span class="grip">·</span>
+                <div>
+                  <div class="title">Hide wontfix / archived from default lists</div>
+                  <div class="meta"><span class="proj">local-dev-dashboard</span><span class="num">#12</span></div>
+                </div>
+                <button type="button" class="add">+ queue</button>
+              </div>
+            </div>
+          </section>
+        </div>
+        <p class="footer-hint">Shipping slice: fetch open issues via existing <code>gh</code> auth · persist queue order in localStorage · link out to GitHub. Skip GitHub Projects sync for v1.</p>
+      </main>
+    </div>
+  </div>
+  <script>
+    const queue = document.getElementById('queue');
+    function renumber() {
+      [...queue.querySelectorAll('.row')].forEach((row, i) => {
+        row.querySelector('.rank').textContent = String(i + 1);
+      });
+    }
+    let dragEl = null;
+    queue.querySelectorAll('.row').forEach((row) => {
+      row.addEventListener('dragstart', () => {
+        dragEl = row;
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        queue.querySelectorAll('.row').forEach((r) => r.classList.remove('drag-over'));
+        dragEl = null;
+        renumber();
+      });
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!dragEl || dragEl === row) return;
+        row.classList.add('drag-over');
+        const rect = row.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        queue.insertBefore(dragEl, before ? row : row.nextSibling);
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    });
+
+    document.getElementById('pool').addEventListener('click', (e) => {
+      const btn = e.target.closest('.add');
+      if (!btn) return;
+      const row = btn.closest('.row');
+      const title = row.querySelector('.title').textContent;
+      const meta = row.querySelector('.meta').innerHTML;
+      const id = row.dataset.id;
+      const el = document.createElement('div');
+      el.className = 'row';
+      el.draggable = true;
+      el.dataset.id = id;
+      el.innerHTML = `
+        <span class="rank"></span>
+        <span class="grip">⋮⋮</span>
+        <div>
+          <div class="title">${title}</div>
+          <div class="meta">${meta}</div>
+        </div>
+        <button type="button" class="go">Open</button>`;
+      queue.appendChild(el);
+      row.remove();
+      renumber();
+      // rebind drag for new row (demo-simple: reload handlers via clone pattern skipped)
+      el.addEventListener('dragstart', () => { dragEl = el; el.classList.add('dragging'); });
+      el.addEventListener('dragend', () => {
+        el.classList.remove('dragging');
+        queue.querySelectorAll('.row').forEach((r) => r.classList.remove('drag-over'));
+        dragEl = null;
+        renumber();
+      });
+      el.addEventListener('dragover', (ev) => {
+        ev.preventDefault();
+        if (!dragEl || dragEl === el) return;
+        el.classList.add('drag-over');
+        const rect = el.getBoundingClientRect();
+        const before = ev.clientY < rect.top + rect.height / 2;
+        queue.insertBefore(dragEl, before ? el : el.nextSibling);
+      });
+    });
+  </script>
+</body>
+</html>

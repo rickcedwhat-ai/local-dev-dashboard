@@ -80,11 +80,17 @@ curl -sS -X POST http://localhost:4000/api/agent-activity \
     "directory": "/absolute/path/to/this/project",
     "pr": <PR_NUMBER>,
     "summary": "Fixing CodeRabbit actionable comments",
-    "agent": "cursor"
+    "agent": "codex",
+    "chatId": "<actual-chat-id>",
+    "chatTitle": "<actual-chat-title>"
   }'
 ```
 
 Use `"agent": "antigravity"` / `"claude-code"` / etc. when relevant. Identify the project with `directory` (preferred), `projectId`, or `repo`.
+
+### Recent chats (all editors)
+
+Include `agent`, `chatId`, and `chatTitle` on activity updates when the editor exposes them. Use the same `agent` and `chatId` on finish so another chat's activity is preserved. Never invent a chat ID. Codex recent chats are also discovered automatically from local metadata, without resuming sessions. Status indicators inspect only lifecycle events in a bounded local session tail; message contents are not exposed. Cursor and Antigravity can send these same fields; optionally include a verified `openUrl` using their own application scheme. Without it their recent chats remain visible but cannot be opened yet. Editors may also send `chatStatus` (`working`, `waiting`, `idle`, `paused`, or `error`); use `phase: "start"` for an active/waiting session and `phase: "finish"` when done. Explicit states expire after 45 minutes without a heartbeat.
 
 ### Heartbeat (optional)
 
@@ -98,6 +104,9 @@ curl -sS -X POST http://localhost:4000/api/agent-activity \
   -d '{
     "protocol": 2,
     "phase": "finish",
+    "agent": "codex",
+    "chatId": "<same-actual-chat-id>",
+    "chatTitle": "<same-actual-chat-title>",
     "directory": "/absolute/path/to/this/project",
     "summary": "CR comments addressed; waiting on CI"
   }'
@@ -127,3 +136,5 @@ curl -sS -X POST http://localhost:4000/api/agent-activity \
 ```
 
 The dashboard hot-reloads `projects.json`.
+
+Chat status: completed turns are **idle**. Reserve **waiting** for a pending question, input, or approval request. Never use finish alone to imply user input is needed.

@@ -10,5 +10,23 @@
     "file": "gh-extension.html",
     "title": "GitHub extension × dashboard",
     "desc": "Extension rabbit menu, still-valid, focus sync, agent handoff — and how it hooks to localhost:4000. Parked idea (#2)."
+  },
+  {
+    "id": "issues-project-panel",
+    "file": "issues-project-panel.html",
+    "title": "Issues · project panel",
+    "desc": "Issues tab beside Open PRs; per-project manual drag order. Good for single-repo focus."
+  },
+  {
+    "id": "issues-up-next",
+    "file": "issues-up-next.html",
+    "title": "Issues · Up next queue",
+    "desc": "Cross-project ordered backlog + available pool. Best fit for “what do I work on next?”"
+  },
+  {
+    "id": "pr-comment-facts",
+    "file": "pr-comment-facts.html",
+    "title": "PR comments → previews & notes",
+    "desc": "Preview links from bot comments (Links panel vs PR-card chip), npm soak note as a one-off rule, and preset vs custom settings."
   }
 ]

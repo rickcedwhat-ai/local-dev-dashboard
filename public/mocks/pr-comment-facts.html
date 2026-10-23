@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PR comments → previews & notes mock</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --bright: #f0f6fc;
+    --muted: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --orange: #ffa657;
+    --red: #ff7b72;
+    --yellow: #e3b341;
+    --purple: #d2a8ff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    min-height: 100vh; line-height: 1.45;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 18px 18px 64px; }
+  h1 { font-size: 20px; color: var(--bright); font-weight: 650; }
+  h2.section { font-size: 15px; color: var(--bright); font-weight: 650; margin: 34px 0 6px; }
+  .lede { font-size: 13px; color: var(--muted); margin: 6px 0 16px; max-width: 820px; }
+  .note {
+    font-size: 12px; color: var(--muted); margin-bottom: 14px;
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); max-width: 820px;
+  }
+  .note strong { color: var(--bright); }
+  code { font-family: var(--mono); font-size: 11px; background: #21262d; padding: 1px 5px; border-radius: 4px; color: #79b8ff; }
+
+  .variant-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .vt {
+    background: #21262d; border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 650; cursor: pointer;
+  }
+  .vt.active { border-color: rgba(88,166,255,0.5); color: #79b8ff; background: rgba(88,166,255,0.12); }
+
+  /* ----- Shell mirrors the live project detail ----- */
+  .shell { border: 1px solid var(--border); border-radius: 12px; background: #0d1117; overflow: hidden; }
+  .main-top {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px 12px; border-bottom: 1px solid var(--border);
+  }
+  .av {
+    width: 36px; height: 36px; border-radius: 8px; background: #21262d; border: 1px solid var(--border);
+    display: grid; place-items: center; font-weight: 700; color: var(--muted); font-size: 12px;
+  }
+  .pname { font-size: 18px; font-weight: 650; color: var(--bright); line-height: 1.2; }
+  .ppath { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .body { padding: 14px 16px 18px; }
+  .split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr); gap: 12px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 0; }
+  .panel-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .panel-h h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; }
+  .panel-h .count { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .panel-sub { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #6e7681; font-weight: 700; margin: 12px 0 6px; }
+
+  /* PR cards */
+  .pr-list { display: flex; flex-direction: column; gap: 8px; }
+  .pr-card {
+    border-radius: 8px; padding: 10px 12px; border: 1.5px solid var(--border);
+    background: #0d1117; cursor: pointer; position: relative;
+  }
+  .pr-card:hover { border-color: #484f58; }
+  .pr-card.ci-passing { border-color: rgba(63,185,80,0.65); }
+  .pr-card.ci-failing { border-color: rgba(248,81,73,0.55); }
+  .pr-row { display: flex; gap: 10px; align-items: flex-start; }
+  .pr-body { flex: 1; min-width: 0; }
+  .pr-id { font-size: 12px; color: var(--muted); font-family: var(--mono); font-weight: 700; }
+  .pr-title { font-size: 13px; color: var(--bright); font-weight: 600; margin-top: 2px; }
+  .pr-meta { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .gh-chip {
+    flex: none; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid #484f58; background: #21262d; color: #c9d1d9; white-space: nowrap;
+  }
+  .gh-chip.actionable { color: var(--red); border-color: rgba(248,81,73,0.5); background: rgba(248,81,73,0.12); }
+  .gh-chip.pending { color: var(--muted); }
+
+  /* Facts row on PR card */
+  .facts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .fact {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--border); background: #161b22; color: var(--text);
+    text-decoration: none; white-space: nowrap;
+  }
+  .fact .dot { width: 6px; height: 6px; border-radius: 50%; background: #484f58; }
+  .fact.live { color: #7ee787; border-color: rgba(63,185,80,0.45); background: rgba(46,160,67,0.1); }
+  .fact.live .dot { background: var(--green); box-shadow: 0 0 5px rgba(63,185,80,0.6); }
+  .fact.building { color: var(--yellow); border-color: rgba(210,153,34,0.45); background: rgba(210,153,34,0.1); }
+  .fact.building .dot { background: var(--yellow); animation: pulse 1.2s infinite; }
+  .fact.stale { color: var(--muted); border-style: dashed; }
+  .fact.soak { color: var(--yellow); border-color: rgba(210,153,34,0.4); background: rgba(210,153,34,0.08); }
+  .fact.soak-done { color: #79b8ff; border-color: rgba(88,166,255,0.45); background: rgba(88,166,255,0.1); cursor: pointer; }
+  .fact:hover { filter: brightness(1.15); }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+
+  /* Links panel */
+  .links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .link-card {
+    display: flex; flex-direction: column; gap: 8px; text-align: left;
+    background: #0d1117; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; color: var(--text); text-decoration: none; cursor: pointer; min-width: 0;
+  }
+  .link-card:hover { border-color: #484f58; }
+  .link-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .link-ico {
+    width: 26px; height: 26px; border-radius: 6px; background: #21262d; border: 1px solid var(--border);
+    display: grid; place-items: center; font-size: 14px; flex: none;
+  }
+  .link-label { font-size: 13px; font-weight: 650; color: var(--bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .link-foot { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .pill { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid #484f58; background: #21262d; color: #c9d1d9; }
+  .pr-badge {
+    font-family: var(--mono); font-size: 11px; font-weight: 800; color: #79b8ff;
+    background: rgba(88,166,255,0.12); border: 1px solid rgba(88,166,255,0.4);
+    border-radius: 999px; padding: 1px 8px; margin-left: auto; flex: none;
+  }
+  .link-card.preview .link-ico { color: #79b8ff; }
+  .link-card.preview .link-ico svg { width: 15px; height: 15px; }
+  /* Hovering a PR card: its preview gets a thicker outline (no color change). */
+  .link-card.preview.linked {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 1px #58a6ff;
+  }
+
+  /* Hovering a preview: its PR card lifts + shakes once. Border keeps its CI color. */
+  .pr-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .pr-card.nudge {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+    animation: pr-nudge 0.4s ease-in-out 1;
+  }
+  @keyframes pr-nudge {
+    0%, 100% { transform: translate(0, -2px); }
+    25% { transform: translate(-3px, -2px); }
+    50% { transform: translate(3px, -2px); }
+    75% { transform: translate(-1px, -2px); }
+  }
+  .state { font-size: 10px; font-weight: 700; display: inline-flex; gap: 4px; align-items: center; }
+  .state .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .state.live { color: #7ee787; } .state.live .dot { background: var(--green); }
+  .state.building { color: var(--yellow); } .state.building .dot { background: var(--yellow); animation: pulse 1.2s infinite; }
+  .link-card.preview .link-sub { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .svc { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; background: #0d1117; font-size: 13px; color: var(--bright); }
+  .svc small { display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  .variant { display: none; }
+  .variant.active { display: block; }
+
+  /* Callouts */
+  .callouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 12px; }
+  .callout { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 10px 12px; font-size: 12px; color: var(--muted); }
+  .callout strong { color: var(--bright); display: block; margin-bottom: 3px; font-size: 12px; }
+  .callout.pro { border-left: 3px solid var(--green); }
+  .callout.con { border-left: 3px solid var(--orange); }
+
+  /* Menu demo */
+  .menu {
+    margin-top: 6px; width: 250px; background: #1c2128; border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+  }
+  .menu .hint { padding: 6px 9px 4px; font-size: 10px; color: var(--muted); font-family: var(--mono); }
+  .menu .item { padding: 7px 9px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--bright); }
+  .menu .item:hover { background: #30363d; }
+  .menu .item.primary { color: #79b8ff; }
+  .menu .item .d { display: block; font-size: 10px; font-weight: 500; color: var(--muted); }
+
+  /* Settings mock */
+  .settings { border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 16px; max-width: 820px; }
+  .settings h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
+  .row { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 13px; }
+  .row:last-child { border-bottom: 0; }
+  .row .t { color: var(--bright); font-weight: 600; }
+  .row .s { font-size: 11px; color: var(--muted); }
+  .tag { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+  .tag.det { color: #7ee787; border-color: rgba(63,185,80,0.45); }
+  .tag.custom { color: var(--purple); border-color: rgba(210,168,255,0.45); }
+  input[type=checkbox] { accent-color: #58a6ff; }
+  .rule {
+    margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; background: #0d1117; padding: 10px 12px;
+    font-size: 12px; display: grid; grid-template-columns: 120px 1fr; gap: 6px 10px;
+  }
+  .rule .k { color: var(--muted); }
+  .rule .v { font-family: var(--mono); color: #adbac7; font-size: 11px; }
+  .actions-tbl {
+    display: grid; grid-template-columns: 170px 150px 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: 12px;
+  }
+  .actions-tbl > div { padding: 7px 10px; border-bottom: 1px solid #21262d; background: #0d1117; color: var(--bright); }
+  .actions-tbl > div.ah { background: #161b22; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+  .actions-tbl > div.v { font-family: var(--mono); font-size: 11px; color: #adbac7; }
+  .do { font-family: var(--mono); font-size: 11px; color: var(--purple); background: rgba(210,168,255,0.1); border: 1px solid rgba(210,168,255,0.35); border-radius: 4px; padding: 0 5px; }
+  .btn { background: #21262d; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>PR comments → preview links & notes</h1>
+  <p class="lede">
+    Real data from <code>playwright-smart-table</code> PR #450 / #452.
+    Bot comments get parsed into two buckets:
+    <strong>reusable presets</strong> (preview deploys — same shape across repos) and
+    <strong>one-off rules</strong> (repo-specific, like the npm soak check).
+    PR cards still open GitHub on click — there's no "selected PR", so previews live somewhere clickable on their own.
+  </p>
+
+  <!-- ================= PREVIEWS ================= -->
+  <h2 class="section">1 · Preview links (reusable preset)</h2>
+  <div class="note">
+    Source: <code>&lt;!-- Sticky Pull Request Commentpr-preview --&gt;</code> from <strong>PR Preview Action</strong>.
+    Live vs building = local HEAD check on the URL (200 vs 404). Rebuilt since HEAD = built before latest push.
+  </div>
+
+  <div class="variant-tabs">
+    <button type="button" class="vt active" data-v="a">A · Links panel (one card per preview)</button>
+    <button type="button" class="vt" data-v="b">B · Chip on the PR card</button>
+    <button type="button" class="vt" data-v="c">C · Both (chip + links section)</button>
+  </div>
+
+  <div class="shell">
+    <div class="main-top">
+      <div class="av">PST</div>
+      <div>
+        <div class="pname">Playwright Smart Table</div>
+        <div class="ppath">~/Documents/Projects/playwright-smart-table</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="split">
+        <!-- PRs -->
+        <div class="panel">
+          <div class="panel-h"><h3>Open PRs</h3><span class="count">3</span></div>
+          <div class="pr-list">
+            <div class="pr-card ci-passing" data-pr="452" title="Opens PR on GitHub">
+              <div class="pr-row">
+                <div class="pr-body">
+                  <div class="pr-id">PR #452</div>
+                  <div class="pr-title">fix: safer defaults &amp; footguns (#434)</div>
+                  <div class="pr-meta"><span>rickcedwhat-ai</span><span>CI passing</span></div>
+                  <div class="facts only-b only-c">
+                    <a class="fact live" href="#" onclick="event.stopPropagation(); return false;" title="https://rickcedwhat.github.io/playwright-smart-table/pr-preview/pr-452/">
+                      <span class="dot"></span>🚀 Preview
+                    </a>
+                  </div>
+                </div>
+                <span class="gh-chip actionable">🐰 CR 3</span>
+              </div>
+            </div>
+
+            <div class="pr-card ci-passing" data-pr="450" title="Opens PR on GitHub">
+              <div class="pr-row">
+                <div class="pr-body">
+                  <div class="pr-id">PR #450</div>
+                  <div class="pr-title">chore(deps-dev): bump the weekly-npm-dependencies group…</div>
+                  <div class="pr-meta"><span>dependabot[bot]</span><span>CI passing</span></div>
+                  <div class="facts only-b only-c">
+                    <a class="fact building" href="#" onclick="event.stopPropagation(); return false;" title="Deploying to gh-pages…">
+                      <span class="dot"></span>🚀 Preview · building
+                    </a>
+                  </div>
+                </div>
+                <span class="gh-chip pending">🐰 CR</span>
+              </div>
+            </div>
+
+            <div class="pr-card" data-pr="157" title="Opens PR on GitHub">
+              <div class="pr-row">
+                <div class="pr-body">
+                  <div class="pr-id">PR #157</div>
+                  <div class="pr-title">feat(mcp): playwright-smart-table MCP inspector server (#108)</div>
+                  <div class="pr-meta"><span>rickcedwhat-ai</span><span>CI running</span></div>
+                  <div class="facts only-b only-c">
+                    <a class="fact stale" href="#" onclick="event.stopPropagation(); return false;" title="Preview built before the latest push">
+                      <span class="dot"></span>🚀 Preview · older commit
+                    </a>
+                  </div>
+                </div>
+                <span class="gh-chip pending">🐰 CR</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="stack">
+          <div class="panel">
+            <div class="panel-h"><h3>Processes</h3><span class="count">0/2 up</span></div>
+            <div class="svc">Dev Server<small>npm run dev -- --port 6309</small></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-h"><h3>Links</h3><span class="count" id="link-count">4</span></div>
+
+            <div class="links-grid">
+              <a class="link-card" href="#"><div class="link-top"><div class="link-ico">🐙</div><div class="link-label">GitHub</div></div><div class="link-foot"><span class="pill">Me</span></div></a>
+              <a class="link-card" href="#"><div class="link-top"><div class="link-ico">📘</div><div class="link-label">Docs</div></div><div class="link-foot"><span class="pill">Me</span></div></a>
+            </div>
+
+            <!-- Variant A + C: preview section -->
+            <div class="only-a only-c">
+              <div class="panel-sub">PR previews</div>
+              <div class="links-grid">
+                <a class="link-card preview" data-pr="452" href="#" title="https://rickcedwhat.github.io/playwright-smart-table/pr-preview/pr-452/">
+                  <div class="link-top"><div class="link-ico" data-ico></div><div class="link-label">Preview</div><span class="pr-badge">#452</span></div>
+                  <div class="link-sub">safer defaults &amp; footguns</div>
+                  <div class="link-foot"><span class="state live"><span class="dot"></span>live</span><span class="pill">built 4m ago</span></div>
+                </a>
+                <a class="link-card preview" data-pr="450" href="#" title="Deploying to gh-pages…">
+                  <div class="link-top"><div class="link-ico" data-ico></div><div class="link-label">Preview</div><span class="pr-badge">#450</span></div>
+                  <div class="link-sub">weekly-npm-dependencies</div>
+                  <div class="link-foot"><span class="state building"><span class="dot"></span>building</span></div>
+                </a>
+                <a class="link-card preview only-a" data-pr="157" href="#" title="Preview built before the latest push">
+                  <div class="link-top"><div class="link-ico" data-ico></div><div class="link-label">Preview</div><span class="pr-badge">#157</span></div>
+                  <div class="link-sub">MCP inspector server</div>
+                  <div class="link-foot"><span class="pill">older commit</span></div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callouts" id="callouts-a">
+    <div class="callout pro"><strong>A · Links panel</strong>Previews sit with the other links you open daily. Big PR number badge = no guessing which preview is which.</div>
+    <div class="callout con"><strong>Trade-off</strong>Eyes jump between the PR card (status) and Links (preview). Grows with many open PRs — cap or collapse after ~4.</div>
+  </div>
+  <div class="callouts" id="callouts-b" style="display:none">
+    <div class="callout pro"><strong>B · Chip on card</strong>Status + preview in one place. Chip clicks go to preview; rest of the card still opens GitHub.</div>
+    <div class="callout con"><strong>Trade-off</strong>Two click targets on one card (easy to mis-click). Adds a row of height to every PR card.</div>
+  </div>
+  <div class="callouts" id="callouts-c" style="display:none">
+    <div class="callout pro"><strong>C · Both</strong>Card shows state at a glance; Links is the "go test it" launcher. Only live/building previews get a link card.</div>
+    <div class="callout con"><strong>Trade-off</strong>Duplicate surface. Worth it only if you actually open previews often.</div>
+  </div>
+
+  <!-- ================= SOAK ================= -->
+  <h2 class="section">2 · One-off notes (custom rule): npm soak check</h2>
+  <div class="note">
+    Source: <code>&lt;!-- age-check-rebase-after: 2026-09-26 --&gt;</code> from a repo-specific workflow.
+    Not a preset — defined as a custom rule on this project. Renders as a small note chip on the PR card; after the date it becomes actionable.
+  </div>
+
+  <div class="split" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+    <div class="panel">
+      <div class="panel-h"><h3>Before the date</h3></div>
+      <div class="pr-card ci-passing">
+        <div class="pr-row">
+          <div class="pr-body">
+            <div class="pr-id">PR #450</div>
+            <div class="pr-title">chore(deps-dev): bump the weekly-npm-dependencies group…</div>
+            <div class="pr-meta"><span>dependabot[bot]</span><span>CI passing</span></div>
+            <div class="facts">
+              <span class="fact soak" title="@commitlint/cli, @commitlint/config-conventional, @types/node are &lt; 7 days old">⏳ Soak · merge after Sep 26</span>
+            </div>
+          </div>
+          <span class="gh-chip pending">🐰 CR</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h3>After the date</h3></div>
+      <div class="pr-card ci-passing">
+        <div class="pr-row">
+          <div class="pr-body">
+            <div class="pr-id">PR #450</div>
+            <div class="pr-title">chore(deps-dev): bump the weekly-npm-dependencies group…</div>
+            <div class="pr-meta"><span>dependabot[bot]</span><span>CI passing</span></div>
+            <div class="facts">
+              <span class="fact soak-done">✓ Soak done · rebase ▾</span>
+            </div>
+          </div>
+          <span class="gh-chip pending">🐰 CR</span>
+        </div>
+      </div>
+      <div class="menu">
+        <div class="hint">Soak ended Sep 26</div>
+        <div class="item primary">@dependabot rebase<span class="d">Rebase so CI runs on fresh versions</span></div>
+        <div class="item">Hide note<span class="d">Until the comment changes</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS ================= -->
+  <h2 class="section">3 · Where it's configured (project settings)</h2>
+  <div class="note">
+    Presets auto-detect from comment markers — no config needed when a repo uses a known action.
+    Custom rules are per-project and cover one-offs. Unmatched bot comments are ignored (no noise).
+  </div>
+
+  <div class="settings">
+    <h4>PR comment sources</h4>
+    <div class="row"><input type="checkbox" checked><div><div class="t">PR Preview Action</div><div class="s">Preview link · marker <code>Sticky Pull Request Commentpr-preview</code></div></div><span class="tag det">detected</span></div>
+    <div class="row"><input type="checkbox" checked><div><div class="t">Vercel</div><div class="s">Preview link · vercel[bot]</div></div><span class="tag">preset</span></div>
+    <div class="row"><input type="checkbox" checked><div><div class="t">Netlify / Cloudflare Pages</div><div class="s">Preview link · netlify[bot], cloudflare-workers-and-pages[bot]</div></div><span class="tag">preset</span></div>
+    <div class="row"><input type="checkbox"><div><div class="t">Chromatic / Storybook</div><div class="s">Preview link · chromatic-com[bot]</div></div><span class="tag">preset</span></div>
+    <div class="row"><input type="checkbox" checked><div><div class="t">npm soak check</div><div class="s">Note chip · date from marker · action: <code>@dependabot rebase</code></div></div><span class="tag custom">custom</span></div>
+
+    <div class="rule">
+      <span class="k">Match author</span><span class="v">github-actions[bot]</span>
+      <span class="k">Marker</span><span class="v">&lt;!-- age-check-rebase-after: {date} --&gt;</span>
+      <span class="k">Chip (before)</span><span class="v">"⏳ Soak · merge after {date}"</span>
+      <span class="k">Chip (after)</span><span class="v">"✓ Soak done · rebase ▾"</span>
+    </div>
+
+    <h4 style="margin-top:14px">Menu actions — what each item does on click</h4>
+    <div class="actions-tbl">
+      <div class="ah">Menu label</div><div class="ah">Do</div><div class="ah">With</div>
+      <div>@dependabot rebase</div><div><span class="do">comment</span></div><div class="v">body: "@dependabot rebase"</div>
+      <div>Open workflow run</div><div><span class="do">open-url</span></div><div class="v">url: {comment.runUrl}</div>
+      <div>Hide note</div><div><span class="do">dismiss</span></div><div class="v">until comment changes</div>
+    </div>
+    <button type="button" class="btn">+ Add action</button>
+    <button type="button" class="btn">+ Add custom rule</button>
+  </div>
+
+  <h2 class="section">4 · How a click actually runs</h2>
+  <div class="note">
+    Rules are <strong>data only</strong>. The menu shows each action's label; clicking sends
+    <code>POST /api/pr-action { projectId, pr, ruleId, actionId }</code>. The server looks the action up
+    in the saved rule (the browser never sends the command) and runs it with one of a few
+    <strong>built-in handlers</strong>. No arbitrary shell from config.
+  </div>
+  <div class="settings">
+    <h4>Built-in action types</h4>
+    <div class="actions-tbl">
+      <div class="ah">Do</div><div class="ah">Runs</div><div class="ah">Example</div>
+      <div><span class="do">comment</span></div><div>gh pr comment (as rickcedwhat-ai)</div><div class="v">@dependabot rebase, @coderabbitai review</div>
+      <div><span class="do">open-url</span></div><div>Opens in browser (Arc space aware)</div><div class="v">preview, workflow run, Chromatic build</div>
+      <div><span class="do">rerun-workflow</span></div><div>gh run rerun on the PR head</div><div class="v">re-run "PR Preview" after a flaky deploy</div>
+      <div><span class="do">run-task</span></div><div>A configured one-shot task (#4)</div><div class="v">npm run e2e -- --base-url {preview.url}</div>
+      <div><span class="do">dismiss</span></div><div>Local only — hides the chip</div><div class="v">until the source comment is edited</div>
+    </div>
+    <p class="lede" style="margin:10px 0 0">
+      Presets (previews) ship with default actions (<code>open-url</code>, optionally <code>rerun-workflow</code>).
+      Custom rules pick from the same list. Actions that post publicly (<code>comment</code>) show a confirm the first time.
+    </p>
+  </div>
+</div>
+
+<script>
+  const setVariant = (v) => {
+    document.querySelectorAll('.vt').forEach((b) => b.classList.toggle('active', b.dataset.v === v));
+    document.querySelectorAll('.only-a, .only-b, .only-c').forEach((el) => {
+      const show = el.classList.contains('only-' + v);
+      el.style.display = show ? '' : 'none';
+    });
+    ['a', 'b', 'c'].forEach((k) => {
+      document.getElementById('callouts-' + k).style.display = k === v ? '' : 'none';
+    });
+    const previews = v === 'b' ? 0 : (v === 'a' ? 3 : 2);
+    document.getElementById('link-count').textContent = String(2 + previews);
+  };
+  document.querySelectorAll('.vt').forEach((b) => b.addEventListener('click', () => setVariant(b.dataset.v)));
+  setVariant('a');
+
+  const PREVIEW_ICON = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2c1.98 0 3.73 1 5.17 2.3A13 13 0 0 1 15.84 7.6a.9.9 0 0 1 0 .8 13 13 0 0 1-2.67 3.3C11.73 13 9.98 14 8 14s-3.73-1-5.17-2.3A13 13 0 0 1 .16 8.4a.9.9 0 0 1 0-.8 13 13 0 0 1 2.67-3.3C4.27 3 6.02 2 8 2Zm0 1.5c-1.5 0-2.9.77-4.15 1.9A11.4 11.4 0 0 0 1.7 8a11.4 11.4 0 0 0 2.15 2.6C5.1 11.73 6.5 12.5 8 12.5s2.9-.77 4.15-1.9A11.4 11.4 0 0 0 14.3 8a11.4 11.4 0 0 0-2.15-2.6C10.9 4.27 9.5 3.5 8 3.5Zm0 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/></svg>';
+  document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = PREVIEW_ICON; });
+
+  // Hover a preview → its PR card nudges. Hover a PR card → its preview outlines.
+  document.querySelectorAll('.link-card.preview[data-pr]').forEach((el) => {
+    const targets = () => document.querySelectorAll(`.pr-list .pr-card[data-pr="${el.dataset.pr}"]`);
+    el.addEventListener('mouseenter', () => targets().forEach((c) => c.classList.add('nudge')));
+    el.addEventListener('mouseleave', () => targets().forEach((c) => c.classList.remove('nudge')));
+  });
+  document.querySelectorAll('.pr-list .pr-card[data-pr]').forEach((el) => {
+    const targets = () => document.querySelectorAll(`.link-card.preview[data-pr="${el.dataset.pr}"]`);
+    el.addEventListener('mouseenter', () => targets().forEach((c) => c.classList.add('linked')));
+    el.addEventListener('mouseleave', () => targets().forEach((c) => c.classList.remove('linked')));
+  });
+</script>
+</body>
+</html>

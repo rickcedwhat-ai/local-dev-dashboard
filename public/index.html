@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Local Dev Dashboard</title>
   <link rel="icon" type="image/png" href="/favicon.png">
-  <style>
+  <link rel="stylesheet" href="/pr-card-shared.css">
+<style>
     :root {
       --bg: #0d1117;
       --card-bg: #161b22;
@@ -385,21 +386,27 @@
       position: sticky;
       top: 0;
       z-index: 50;
-      margin: -24px -24px 20px;
+      margin: -16px -16px 20px;
     }
 
     .api-banner-wrap,
-    .cr-banner-wrap {
+    .cr-banner-wrap,
+    .port-banner-wrap,
+    .notify-alert-wrap {
       display: none;
     }
 
     .api-banner-wrap.visible,
-    .cr-banner-wrap.visible {
+    .cr-banner-wrap.visible,
+    .port-banner-wrap.visible,
+    .notify-alert-wrap.visible {
       display: block;
     }
 
     .api-banner,
-    .cr-banner {
+    .cr-banner,
+    .port-banner,
+    .notify-alert {
       display: flex;
       align-items: center;
       gap: 12px;
@@ -419,19 +426,41 @@
       color: #e3b341;
     }
 
+    .port-banner {
+      background: #152238;
+      border-bottom: 1px solid #388bfd;
+      color: #9ecbff;
+    }
+
+    .notify-alert {
+      background: #1a2332;
+      border-bottom: 1px solid #388bfd;
+      color: #c9d1d9;
+    }
+    .notify-alert strong { color: #79c0ff; }
+    .notify-alert .where {
+      color: #8b949e;
+      margin-left: 4px;
+    }
+
     .api-banner .body,
-    .cr-banner .body { flex: 1; min-width: 0; }
+    .cr-banner .body,
+    .port-banner .body,
+    .notify-alert .body { flex: 1; min-width: 0; }
     .cr-banner strong { color: #ffd6c8; }
     .api-banner strong { color: #ffe8a3; }
+    .port-banner strong { color: #79c0ff; }
     .api-banner .pills,
-    .cr-banner .pills {
+    .cr-banner .pills,
+    .port-banner .pills {
       display: inline-flex;
       gap: 6px;
       flex-wrap: wrap;
       margin-top: 4px;
     }
     .api-banner .pills span,
-    .cr-banner .pills span {
+    .cr-banner .pills span,
+    .port-banner .pills span {
       font-family: var(--font-mono);
       font-size: 10px;
       padding: 1px 7px;
@@ -443,8 +472,11 @@
     .cr-banner .pills .ok { color: #3fb950; border-color: rgba(46, 160, 67, 0.35); }
     .api-banner .pills .bad,
     .cr-banner .pills .bad { color: #ffa657; border-color: rgba(255, 166, 87, 0.4); }
+    .port-banner .pills .hint { color: #8b949e; border-color: rgba(139, 148, 158, 0.4); }
     .api-banner button,
-    .cr-banner button {
+    .cr-banner button,
+    .port-banner button,
+    .notify-alert button {
       background: rgba(0, 0, 0, 0.25);
       border: 1px solid rgba(255, 255, 255, 0.18);
       color: inherit;
@@ -453,103 +485,6 @@
       font-size: 12px;
       cursor: pointer;
       flex: none;
-    }
-
-    /* Unified GitHub chip — carries CodeRabbit review state. */
-    .gh-wrap {
-      position: relative;
-      display: inline-flex;
-    }
-
-    .gh {
-      --gh-color: #8b949e;
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
-      border-radius: 12px;
-      border: 1.5px solid color-mix(in srgb, var(--gh-color) 42%, transparent);
-      background: color-mix(in srgb, var(--gh-color) 14%, #21262d);
-      color: color-mix(in srgb, var(--gh-color) 72%, #ffffff);
-      font-size: 11px;
-      font-weight: 600;
-      line-height: 1.35;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
-    .gh .badge {
-      padding: 0 5px;
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--gh-color) 85%, #ffffff);
-      color: #0d1117;
-      font-size: 10px;
-      font-weight: 700;
-      line-height: 1.5;
-      position: relative;
-      z-index: 1;
-    }
-
-    .gh .label { position: relative; z-index: 1; }
-
-    .gh.empty { --gh-color: #8b949e; }
-    .gh.pending {
-      --gh-color: #8b949e;
-      border-style: dashed;
-    }
-    .gh.clear { --gh-color: #3fb950; }
-
-    /* Opaque interior so the conic comet only paints the border ring. */
-    .gh.reviewing {
-      color: #e3b341;
-      border: 1.5px solid transparent;
-      background:
-        linear-gradient(#2a2416, #2a2416) padding-box,
-        linear-gradient(#5a4a22, #5a4a22) border-box;
-    }
-
-    .gh.actionable {
-      --gh-color: #f85149;
-      animation: gh-heartbeat 1.35s ease-in-out infinite;
-    }
-    .gh.actionable .badge { background: #ff7b72; color: #0d1117; }
-
-    .gh.limited {
-      --gh-color: var(--limited);
-      --fill: 0%;
-      color: #ffc48a;
-      border-color: rgba(255, 166, 87, 0.55);
-      overflow: hidden;
-      background:
-        linear-gradient(
-          90deg,
-          rgba(255, 166, 87, 0.38) 0%,
-          rgba(255, 166, 87, 0.38) var(--fill),
-          #21262d var(--fill),
-          #21262d 100%
-        );
-    }
-
-    .gh.ready {
-      --gh-color: var(--limited);
-      color: #ffc48a;
-      border-color: rgba(255, 166, 87, 0.65);
-      background: rgba(255, 166, 87, 0.28);
-      animation: gh-ready-throb 1.4s ease-in-out infinite;
-    }
-
-    @keyframes gh-heartbeat {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
-      15% { transform: scale(1.07); box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.25); }
-      30% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
-      45% { transform: scale(1.045); box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.16); }
-      60% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
-    }
-
-    @keyframes gh-ready-throb {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 166, 87, 0); }
-      50% { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(255, 166, 87, 0.22); }
     }
 
     .gh-tip {
@@ -781,29 +716,11 @@
       color: #e3b341;
     }
 
+    .pr-card .agent-strip {
+      margin-top: 8px;
+    }
+
     /* --- CR Autofix (removable) --- */
-    .gh.autofixing,
-    .gh.reviewing-busy {
-      --gh-color: #e3b341;
-      color: #e3b341;
-      border-color: rgba(210, 153, 34, 0.45);
-      background: rgba(210, 153, 34, 0.14);
-    }
-
-    .gh.leftover {
-      --gh-color: #f85149;
-      color: #ff7b72;
-      border-color: rgba(248, 81, 73, 0.45);
-      background: rgba(248, 81, 73, 0.14);
-    }
-
-    .gh.delivery {
-      --gh-color: #ff7b72;
-      color: #ffb4ae;
-      border-color: rgba(248, 81, 73, 0.5);
-      background: rgba(248, 81, 73, 0.12);
-    }
-
     .btn-cr {
       font: inherit;
       font-size: 11px;
@@ -833,72 +750,6 @@
     .btn-cr .rabbit { font-size: 12px; line-height: 1; }
 
     .cr-wrap { position: relative; display: inline-flex; }
-    .cr-menu {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      z-index: 50;
-      min-width: 220px;
-      background: #1c2128;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 4px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-      display: none;
-    }
-    .cr-menu.open { display: block; }
-    .cr-menu-hint {
-      padding: 6px 9px 4px;
-      font-size: 10px;
-      color: var(--muted);
-      font-family: var(--font-mono);
-      text-align: left;
-    }
-    .cr-menu-sep {
-      height: 1px;
-      background: var(--border);
-      margin: 4px 6px;
-    }
-    .cr-menu-item {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: 2px;
-      width: 100%;
-      text-align: left;
-      padding: 7px 9px;
-      border-radius: 6px;
-      border: 0;
-      background: transparent;
-      color: var(--text);
-      font: inherit;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .cr-menu-item:hover:not(:disabled) { background: #30363d; }
-    .cr-menu-item:disabled {
-      color: var(--muted);
-      cursor: default;
-      opacity: 0.55;
-    }
-    .cr-menu-item .title {
-      color: var(--text-bright);
-      text-align: left;
-      width: 100%;
-    }
-    .cr-menu-item.primary .title { color: #79b8ff; }
-    .cr-menu-item.danger .title { color: #ffb4ae; }
-    .cr-menu-item .desc {
-      font-size: 10px;
-      font-weight: 500;
-      color: var(--muted);
-      line-height: 1.35;
-      text-align: left;
-      width: 100%;
-    }
-
     .agent-strip.autofixing,
     .agent-strip.cr-reviewing {
       background: rgba(210, 153, 34, 0.12);
@@ -1029,6 +880,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-width: 0;
     }
 
     .service-row {
@@ -1039,6 +891,8 @@
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 10px 12px;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .service-top {
@@ -1046,11 +900,13 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 10px;
+      min-width: 0;
     }
 
     .service-main {
       min-width: 0;
       flex: 1;
+      overflow: hidden;
     }
 
     .service-meta {
@@ -1079,9 +935,10 @@
       background: #161b22;
       padding: 2px 6px;
       border-radius: 3px;
-      display: inline-block;
+      display: block;
       margin-top: 6px;
       max-width: 100%;
+      box-sizing: border-box;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1174,9 +1031,24 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      white-space: nowrap;
+      /* Don't contribute intrinsic width to ancestors — fill parent only. */
+      width: 0;
+      min-width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .starting-banner .spinner {
+      flex-shrink: 0;
+    }
+
+    .starting-banner-text {
+      min-width: 0;
+      flex: 1 1 0;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .health-pill {
@@ -1647,6 +1519,21 @@
       display: none;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       z-index: 200;
+      max-width: min(420px, calc(100vw - 40px));
+    }
+    .toast.clickable {
+      cursor: pointer;
+      border-color: rgba(56, 139, 253, 0.55);
+    }
+    .toast.clickable:hover {
+      border-color: #58a6ff;
+      background: #262c36;
+    }
+    .toast .toast-hint {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: #8b949e;
     }
 
     .notify-row {
@@ -1808,17 +1695,63 @@
     }
 
     /* ===== Sidebar + detail shell (layout mock → live) ===== */
-    body { padding: 16px 16px 28px; }
-    .container { max-width: 1400px; }
+    /* The page itself never scrolls; panes (sidebar, panels) scroll on their own. */
+    html { height: 100%; overflow: hidden; }
+    body {
+      padding: 16px 16px 20px;
+      height: 100vh;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .sticky-banners { flex: none; }
+    .container {
+      max-width: 1400px;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .container > header { flex: none; }
+
+    /* Scrollbars stay invisible until the pane is hovered; thin so they barely take room. */
+    .side-list,
+    .panel-scroll,
+    .main .body {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+      scrollbar-gutter: stable;
+    }
+    .side-list:hover,
+    .panel-scroll:hover,
+    .main .body:hover {
+      scrollbar-color: rgba(139, 148, 158, 0.45) transparent;
+    }
+    .side-list::-webkit-scrollbar,
+    .panel-scroll::-webkit-scrollbar,
+    .main .body::-webkit-scrollbar { width: 6px; height: 6px; }
+    .side-list::-webkit-scrollbar-track,
+    .panel-scroll::-webkit-scrollbar-track,
+    .main .body::-webkit-scrollbar-track { background: transparent; }
+    .side-list::-webkit-scrollbar-thumb,
+    .panel-scroll::-webkit-scrollbar-thumb,
+    .main .body::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+    .side-list:hover::-webkit-scrollbar-thumb,
+    .panel-scroll:hover::-webkit-scrollbar-thumb,
+    .main .body:hover::-webkit-scrollbar-thumb { background: rgba(139, 148, 158, 0.45); }
 
     .shell {
       display: grid;
-      grid-template-columns: 228px minmax(0, 1fr);
+      grid-template-columns: 252px minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
       border: 1px solid var(--border);
       border-radius: 12px;
       background: #010409;
       overflow: hidden;
-      min-height: min(820px, calc(100vh - 160px));
+      flex: 1;
+      min-height: 0;
     }
 
     .side {
@@ -1870,6 +1803,48 @@
     }
     .side-item.dragging { opacity: 0.45; }
     .side-item.drag-over { outline: 1px dashed var(--primary); outline-offset: 1px; }
+    .side-group + .side-group { margin-top: 10px; }
+    .side-group-h {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 0;
+      border-radius: 6px;
+      padding: 4px 4px 6px;
+      color: var(--text-bright);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+      text-align: left;
+    }
+    .side-group-h:hover { background: #12181f; }
+    .side-group-h.drag-over { outline: 1px dashed var(--primary); }
+    .side-group-h .chev { font-size: 10px; width: 12px; color: var(--muted); transition: transform 0.12s; }
+    .side-group.collapsed .side-group-h .chev { transform: rotate(-90deg); }
+    .side-group-h .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .side-group-h .count { font-size: 11px; font-weight: 600; color: var(--muted); }
+    .side-group-h .side-review { margin-left: auto; }
+    /* Projects sit indented under their group, hanging off a faint guide line. */
+    .side-group > .side-item {
+      width: calc(100% - 14px);
+      margin-left: 14px;
+    }
+    .side-group:has(> .side-item) {
+      background:
+        linear-gradient(var(--border), var(--border)) no-repeat 9px 30px / 1px calc(100% - 36px);
+    }
+    .side-group-fail {
+      margin-left: auto;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #f85149;
+      flex: none;
+    }
+    .side-group-h .side-review + .side-group-fail { margin-left: 0; }
     .side-item.ci-passing {
       border: 1.5px solid rgba(63, 185, 80, 0.65);
     }
@@ -1942,6 +1917,7 @@
       display: flex;
       flex-direction: column;
       flex: 1;
+      min-width: 0;
       min-height: 0;
     }
     .main-top {
@@ -1978,8 +1954,10 @@
     .main-top .git { margin-top: 8px; }
     .main-top .actions {
       display: flex;
+      flex-direction: row;
+      align-items: center;
       gap: 6px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
     }
     .main-top .btn {
       background: #21262d;
@@ -1992,25 +1970,180 @@
       cursor: pointer;
     }
     .main-top .btn:hover { border-color: #484f58; color: var(--text-bright); }
+    .main-top .btn-settings {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      justify-content: center;
+      color: var(--muted);
+      background: #21262d;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .main-top .btn-settings:hover:not(:disabled) {
+      color: var(--text-bright);
+      border-color: #484f58;
+    }
+    .main-top .btn-settings svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+    .main-quiet-wrap {
+      position: relative;
+      display: none;
+    }
+    .main-quiet-wrap.visible { display: block; }
+    .main-quiet-wrap .quiet-chip {
+      justify-content: center;
+    }
+    .main-quiet-flyout {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      min-width: 240px;
+      max-width: 320px;
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+      padding: 6px;
+      z-index: 40;
+    }
+    .main-quiet-flyout.open { display: block; }
+    .quiet-pr-row {
+      position: relative;
+    }
+    .quiet-pr-row > button.quiet-pr-btn {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      background: transparent;
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--text);
+      text-align: left;
+      cursor: default;
+    }
+    .quiet-pr-row:hover > button.quiet-pr-btn,
+    .quiet-pr-row:focus-within > button.quiet-pr-btn {
+      background: #30363d;
+    }
+    .quiet-pr-btn .pr-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-bright);
+    }
+    .quiet-pr-btn .pr-meta {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 280px;
+    }
+    .quiet-pr-btn .pr-flags {
+      font-size: 10px;
+      color: #e3b341;
+      font-weight: 650;
+    }
+    .quiet-submenu {
+      display: none;
+      position: absolute;
+      top: 0;
+      right: calc(100% + 4px);
+      min-width: 200px;
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+      padding: 6px;
+      z-index: 41;
+    }
+    .quiet-pr-row:hover > .quiet-submenu,
+    .quiet-pr-row:focus-within > .quiet-submenu {
+      display: block;
+    }
     .main .body {
       padding: 14px 16px 18px;
       flex: 1;
-      overflow: auto;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .org-split {
       display: grid;
-      grid-template-columns: 1.25fr 0.95fr;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
+      grid-template-rows: minmax(0, 1fr);
       gap: 12px;
       align-items: start;
+      min-width: 0;
+      width: 100%;
+      height: 100%;
     }
-    .org-stack { display: flex; flex-direction: column; gap: 12px; }
+    .org-split > .panel { max-height: 100%; }
+    .org-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+      max-width: 100%;
+      max-height: 100%;
+      min-height: 0;
+    }
+    .org-stack > .panel {
+      flex: 0 1 auto;
+      min-height: 110px;
+    }
 
     .panel {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 12px;
+      min-width: 0;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .project-tabs-panel { height: 100%; max-height: 100%; }
+    .project-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: -2px 0 12px; padding-bottom: 8px; flex: none; }
+    .project-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 5px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+    .project-tab:hover { background: rgba(88,166,255,.06); color: var(--text); }
+    .project-tab[aria-selected="true"] { background: rgba(88,166,255,.12); border-color: rgba(88,166,255,.25); color: #79b8ff; }
+    .project-tab:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
+    .project-tab-count { font-size: 10px; opacity: .75; }
+    @media (max-width: 900px) { .project-tabs-panel { height: auto; min-height: 180px; } }
+    .recent-chat { display:flex; align-items:center; gap:10px; padding:10px; border-radius:7px; color:inherit; text-decoration:none; }
+    a.recent-chat:hover { background:rgba(88,166,255,.09); }
+    a.recent-chat:focus-visible { outline:2px solid #58a6ff; outline-offset:-2px; }
+    .recent-chat-copy { min-width:0; flex:1; }
+    .recent-chat-title { font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chat-state { display: inline-flex; align-items: center; gap: 5px; margin-right: 7px; }
+    .chat-state::before { content: ''; width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
+    .chat-state-working { color: #58a6ff; }
+    .chat-state-waiting { color: #d8ac50; }
+    .chat-state-error { color: #f85149; }
+    .chat-state-idle, .chat-state-paused, .chat-state-unknown { color: var(--muted); }
+    .recent-chat-meta { color:var(--muted); font-size:11px; margin-top:4px; }
+    .recent-chat-provider { color:var(--muted); font-size:10px; border:1px solid var(--border); border-radius:5px; padding:3px 6px; }
+    .panel > .panel-h { flex: none; }
+    /* Popups inside (CR menu, link menu, tips) are pinned with position:fixed by JS so this can clip. */
+    .panel-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      /* room for card outlines/glows that the scroll box would otherwise clip */
+      margin: -4px -8px -4px -4px;
+      padding: 4px 8px 4px 4px;
     }
     .panel-h {
       display: flex;
@@ -2052,8 +2185,96 @@
       outline: 1px solid rgba(88, 166, 255, 0.35);
       outline-offset: 1px;
     }
+    .pr-card.notify-flash {
+      animation: pr-notify-flash 0.9s ease-out 2;
+    }
+    @keyframes pr-notify-flash {
+      0%, 100% {
+        outline: 1px solid rgba(88, 166, 255, 0.35);
+        outline-offset: 1px;
+        box-shadow: 0 0 0 0 rgba(88, 166, 255, 0);
+      }
+      40% {
+        outline: 2px solid rgba(88, 166, 255, 0.85);
+        outline-offset: 2px;
+        box-shadow: 0 0 0 6px rgba(88, 166, 255, 0.22);
+      }
+    }
+    .pr-merge-btn {
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      background: #238636;
+      border: 1px solid rgba(240, 246, 252, 0.1);
+      border-radius: 999px;
+      padding: 3px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+    .pr-merge-btn:hover { background: #2ea043; }
+    .pr-merge-btn.armed {
+      background: #2ea043;
+      box-shadow: 0 0 0 2px rgba(46, 160, 67, 0.45);
+    }
+    .pr-merge-btn.pending,
+    .pr-merge-btn:disabled { opacity: 0.6; cursor: default; }
+    .pr-soak-chip {
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      color: #e3b341;
+      background: rgba(210, 153, 34, 0.1);
+      border: 1px solid rgba(210, 153, 34, 0.4);
+      border-radius: 999px;
+      padding: 2px 11px;
+      white-space: nowrap;
+      cursor: default;
+    }
+    .pr-soak-chip.ready {
+      color: #79b8ff;
+      background: rgba(88, 166, 255, 0.12);
+      border-color: rgba(88, 166, 255, 0.5);
+      cursor: pointer;
+    }
+    .pr-soak-chip.ready:hover { background: rgba(88, 166, 255, 0.22); }
+    .pr-soak-chip.armed { box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.4); }
+    .pr-soak-chip:disabled { opacity: 0.6; cursor: default; }
+    .pr-foot .pr-soak-chip { font-size: 11px; padding: 1px 9px; }
+
+    .side-item .n .side-review {
+      margin-left: auto;
+      flex: none;
+      font-size: 10px;
+      font-weight: 700;
+      color: #58a6ff;
+      background: rgba(88, 166, 255, 0.14);
+      border: 1px solid rgba(88, 166, 255, 0.5);
+      border-radius: 999px;
+      padding: 0 7px;
+      line-height: 16px;
+      white-space: nowrap;
+    }
+    .pr-card.draft {
+      border: 1.5px dashed #484f58;
+      box-shadow: none;
+      background: #0d1117;
+    }
+    .pr-card.draft:hover { border-color: #6e7681; }
+    .pr-card.draft .pr-title { color: #adbac7; }
+    .pr-draft {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px dashed #484f58;
+      border-radius: 999px;
+      padding: 1px 7px;
+    }
     .pr-card.waiting .pr-id::after {
-      content: 'waiting';
+      content: 'waiting on author';
       margin-left: 8px;
       font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
       font-size: 10px;
@@ -2066,6 +2287,74 @@
       border-radius: 999px;
       padding: 1px 7px;
       vertical-align: 1px;
+    }
+    .pr-card.quiet-ci .pr-ci::after {
+      content: 'quiet';
+      margin-left: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #8b949e;
+      border: 1px solid rgba(139, 148, 158, 0.45);
+      background: rgba(110, 118, 129, 0.15);
+      border-radius: 999px;
+      padding: 1px 6px;
+    }
+    .pr-card.quiet-ci.ci-failing,
+    .pr-card.quiet-ci.ci-running {
+      border: 1.5px solid var(--border);
+      background: #0d1117;
+      box-shadow: none;
+      opacity: 0.78;
+    }
+    /* Quiet CR: keep red chip color, stop the throb. */
+    .pr-card.quiet-cr .gh.actionable,
+    .pr-card.quiet-cr .gh.leftover,
+    .pr-card.quiet-cr .gh.ready {
+      animation: none;
+    }
+    .pr-actions {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .quiet-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    .quiet-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1.5px solid rgba(139, 148, 158, 0.42);
+      background: rgba(110, 118, 129, 0.14);
+      color: #c9d1d9;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+      cursor: pointer;
+    }
+    .quiet-chip.active {
+      border-color: rgba(227, 179, 65, 0.45);
+      background: rgba(187, 128, 9, 0.15);
+      color: #e3b341;
+    }
+    .quiet-chip .chev {
+      font-size: 9px;
+      opacity: 0.75;
+    }
+    .quiet-chip .badge {
+      padding: 0 5px;
+      border-radius: 8px;
+      background: rgba(227, 179, 65, 0.85);
+      color: #0d1117;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.5;
     }
     .pr-card.ci-passing {
       border: 1.5px solid rgba(63, 185, 80, 0.65);
@@ -2260,6 +2549,89 @@
       line-height: 1;
     }
 
+    /* PR preview links (parsed from bot comments). */
+    .links-sub {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6e7681;
+      font-weight: 700;
+      margin: 12px 0 6px;
+    }
+    .link-card.preview { min-height: 0; min-width: 0; }
+    .link-card.preview .icon { color: #79b8ff; }
+    .link-card.preview .icon svg { width: 15px; height: 15px; }
+    .link-card.preview .label { flex: none; }
+    .link-card.preview .pr-num {
+      margin-left: auto;
+      flex: none;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+      color: #79b8ff;
+      background: rgba(88, 166, 255, 0.12);
+      border: 1px solid rgba(88, 166, 255, 0.4);
+      border-radius: 999px;
+      padding: 1px 8px;
+    }
+    .link-card.preview .sub {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .link-card.preview .foot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .preview-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .preview-state .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #484f58;
+    }
+    .preview-state.live { color: #7ee787; }
+    .preview-state.live .dot { background: var(--success); }
+    .preview-state.building { color: #e3b341; }
+    .preview-state.building .dot { background: #e3b341; animation: preview-pulse 1.2s infinite; }
+    @keyframes preview-pulse { 50% { opacity: 0.35; } }
+    .link-card.preview .pill.age {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 999px;
+      border: 1px solid #484f58;
+      background: #21262d;
+      color: #c9d1d9;
+    }
+
+    /* Hovering a PR card: its preview gets a thicker blue outline. */
+    .link-card.preview.linked {
+      border-color: #58a6ff;
+      box-shadow: 0 0 0 1px #58a6ff;
+    }
+    /* Hovering a preview: highlight the "PR #N" label on its PR card. */
+    .pr-card .pr-id {
+      border-radius: 4px;
+      transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .pr-card.preview-hover .pr-id {
+      color: #79b8ff;
+      background: rgba(88, 166, 255, 0.14);
+      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.14);
+    }
+
     .panel .services-list {
       gap: 8px;
     }
@@ -2268,13 +2640,17 @@
     }
 
     @media (max-width: 900px) {
-      .shell { grid-template-columns: 1fr; min-height: 0; }
+      .shell { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
       .side {
         border-right: 0;
         border-bottom: 1px solid var(--border);
         max-height: 220px;
       }
-      .org-split { grid-template-columns: 1fr; }
+      /* Stacked panels: let the detail pane scroll as one column instead. */
+      .main .body { overflow-y: auto; }
+      .org-split { grid-template-columns: 1fr; grid-template-rows: none; height: auto; }
+      .org-split > .panel,
+      .org-stack { max-height: none; }
     }
 
     .projects-grid { display: none; }
@@ -2283,11 +2659,17 @@
 </head>
 <body>
   <div class="sticky-banners">
+    <div class="notify-alert-wrap" id="notify-alert-wrap">
+      <div class="notify-alert" id="notify-alert"></div>
+    </div>
     <div class="api-banner-wrap" id="api-banner-wrap">
       <div class="api-banner" id="api-banner"></div>
     </div>
     <div class="cr-banner-wrap" id="cr-banner-wrap">
       <div class="cr-banner" id="cr-banner"></div>
+    </div>
+    <div class="port-banner-wrap" id="port-banner-wrap">
+      <div class="port-banner" id="port-banner"></div>
     </div>
   </div>
   <div class="container">
@@ -2336,7 +2718,13 @@
               <div id="main-commits"></div>
             </div>
             <div class="actions">
-              <button type="button" class="btn" id="main-settings" title="Project settings">Settings</button>
+              <div class="main-quiet-wrap" id="main-quiet-wrap">
+                <button type="button" class="quiet-chip" id="main-quiet-btn" title="Quiet CI/CR on open PRs">
+                  <span>Quiet</span><span class="badge" id="main-quiet-badge" hidden></span><span class="chev">▾</span>
+                </button>
+                <div class="main-quiet-flyout" id="main-quiet-flyout"></div>
+              </div>
+              <button type="button" class="btn-settings" id="main-settings" title="Project settings" aria-label="Project settings"></button>
             </div>
           </div>
           <div class="body" id="main-body"></div>
@@ -2534,6 +2922,12 @@
             <input id="settings-description" type="text" autocomplete="off">
           </div>
           <div class="form-row">
+            <label for="settings-group">Group</label>
+            <input id="settings-group" type="text" list="settings-group-options" placeholder="Ungrouped" autocomplete="off">
+            <datalist id="settings-group-options"></datalist>
+            <div class="settings-hint">Sidebar section. Pick an existing group or type a new one.</div>
+          </div>
+          <div class="form-row">
             <label for="settings-avatar">Avatar URL</label>
             <div class="avatar-preview-row">
               <div id="settings-avatar-preview"></div>
@@ -2564,7 +2958,8 @@
     </div>
   </div>
 
-  <script>
+  <script src="/pr-card-shared.js"></script>
+<script>
     let currentLogServiceId = null;
     let eventSource = null;
     const pendingStarts = new Set();
@@ -2572,7 +2967,8 @@
     // --- CR Autofix (removable) ---
     let crAutofixEnabled = true;
     const pendingCrAction = new Set(); // projectId or projectId:pr with in-flight POST
-    let openCrMenuId = null; // `${projectId}:${prNumber}`
+    let openCrMenuId = new URLSearchParams(window.location.search).get('openCr') || null; // `${projectId}:${prNumber}`
+    let openProjectQuietId = null; // projectId
     // --- end CR Autofix ---
     let lastRateLimit = { private: null, oss: null };
     let lastApiLimit = { restUntil: null, graphqlUntil: null };
@@ -2618,9 +3014,79 @@
       });
     }
 
-    function currentVisibleOrder() {
-      return [...document.querySelectorAll('.side-item[data-project-id]')]
-        .map((el) => el.dataset.projectId);
+    const UNGROUPED = 'Ungrouped';
+    const COLLAPSED_GROUPS_KEY = 'dev-dashboard-collapsed-groups';
+    let lastGroups = [];
+
+    function loadCollapsedGroups() {
+      try {
+        const raw = localStorage.getItem(COLLAPSED_GROUPS_KEY);
+        if (raw == null) return new Set(['Personal']);
+        const parsed = JSON.parse(raw);
+        return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function toggleGroupCollapsed(name) {
+      const set = loadCollapsedGroups();
+      if (set.has(name)) set.delete(name);
+      else set.add(name);
+      localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...set]));
+      if (lastProjects.length) renderProjects(lastProjects);
+    }
+
+    function projectGroup(proj) {
+      return (proj && typeof proj.group === 'string' && proj.group.trim()) || UNGROUPED;
+    }
+
+    /** [{ name, projects }] in configured group order; unknown groups next, Ungrouped last. */
+    function groupProjects(ordered) {
+      const buckets = new Map();
+      for (const proj of ordered) {
+        const g = projectGroup(proj);
+        if (!buckets.has(g)) buckets.set(g, []);
+        buckets.get(g).push(proj);
+      }
+      const names = [
+        ...lastGroups.filter((g) => buckets.has(g)),
+        ...[...buckets.keys()].filter((g) => g !== UNGROUPED && !lastGroups.includes(g)),
+        ...(buckets.has(UNGROUPED) ? [UNGROUPED] : [])
+      ];
+      return names.map((name) => ({ name, projects: buckets.get(name) }));
+    }
+
+    function knownGroupNames() {
+      const names = new Set(lastGroups);
+      for (const p of lastProjects) if (projectGroup(p) !== UNGROUPED) names.add(projectGroup(p));
+      return [...names];
+    }
+
+    document.addEventListener('click', (event) => {
+      const header = event.target instanceof Element && event.target.closest('#side-list .side-group-h[data-group]');
+      if (header) toggleGroupCollapsed(header.dataset.group);
+    });
+
+    async function moveProjectToGroup(projectId, group) {
+      const proj = lastProjects.find((p) => p.id === projectId);
+      if (!proj) return;
+      const next = group === UNGROUPED ? '' : group;
+      proj.group = next || undefined;
+      renderProjects(lastProjects);
+      try {
+        const res = await fetch('/api/update-project', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, group: next })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.error) showToast(data.error);
+        else showToast(`${proj.name} → ${group}`);
+      } catch (err) {
+        showToast('Move failed: ' + (err.message || String(err)));
+      }
+      fetchStatus();
     }
 
     function bindCardDragHandlers() {
@@ -2668,6 +3134,16 @@
           // fall back to manual reorder on pointerup over another card.
         });
 
+        card.addEventListener('pointermove', (e) => {
+          if (!dragging || pointerId !== e.pointerId) return;
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          const over = el && (el.closest('.side-group-h[data-group]') || el.closest('.side-item[data-project-id]'));
+          document.querySelectorAll('.side-item.drag-over, .side-group-h.drag-over').forEach((n) => {
+            if (n !== over) n.classList.remove('drag-over');
+          });
+          if (over && over !== card) over.classList.add('drag-over');
+        });
+
         card.addEventListener('pointerup', (e) => {
           if (pointerId !== e.pointerId) return;
           pointerId = null;
@@ -2675,20 +3151,31 @@
           if (!dragging) return;
           const el = document.elementFromPoint(e.clientX, e.clientY);
           const target = el && el.closest('.side-item[data-project-id]');
+          const header = el && el.closest('.side-group-h[data-group]');
           const fromId = dragProjectId;
           const toId = target && target.dataset.projectId;
           card.classList.remove('dragging');
-          document.querySelectorAll('.side-item.drag-over').forEach((n) => n.classList.remove('drag-over'));
+          document.querySelectorAll('.side-item.drag-over, .side-group-h.drag-over')
+            .forEach((n) => n.classList.remove('drag-over'));
           dragProjectId = null;
-          if (!fromId || !toId || fromId === toId) return;
-          const order = currentVisibleOrder();
+          if (!fromId) return;
+          const fromProj = lastProjects.find((p) => p.id === fromId);
+          if (header) {
+            if (projectGroup(fromProj) !== header.dataset.group) moveProjectToGroup(fromId, header.dataset.group);
+            return;
+          }
+          if (!toId || fromId === toId) return;
+          // Reorder against the full list so projects in collapsed groups keep their slots.
+          const order = sortProjectsBySavedOrder(lastProjects).map((p) => p.id);
           const fromIdx = order.indexOf(fromId);
           const toIdx = order.indexOf(toId);
           if (fromIdx < 0 || toIdx < 0) return;
           order.splice(fromIdx, 1);
           order.splice(toIdx, 0, fromId);
           saveProjectOrder(order);
-          if (lastProjects.length) renderProjects(lastProjects);
+          const toGroup = projectGroup(lastProjects.find((p) => p.id === toId));
+          if (projectGroup(fromProj) !== toGroup) moveProjectToGroup(fromId, toGroup);
+          else if (lastProjects.length) renderProjects(lastProjects);
         });
 
         card.addEventListener('pointercancel', () => {
@@ -2710,15 +3197,95 @@
       }
     }
 
-    function showToast(msg, ms = 3000) {
+    function showToast(msg, ms = 3000, opts = {}) {
       const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.style.display = 'block';
+      const { onClick = null, hint = null } = opts || {};
       clearTimeout(showToast._t);
-      showToast._t = setTimeout(() => { toast.style.display = 'none'; }, ms);
+      toast.onclick = null;
+      toast.classList.toggle('clickable', !!onClick);
+      if (hint) {
+        toast.innerHTML = `${escapeHtml(msg)}<span class="toast-hint">${escapeHtml(hint)}</span>`;
+      } else {
+        toast.textContent = msg;
+      }
+      if (onClick) {
+        toast.onclick = (event) => {
+          event.preventDefault();
+          onClick();
+        };
+      }
+      toast.style.display = 'block';
+      showToast._t = setTimeout(() => {
+        toast.style.display = 'none';
+        toast.onclick = null;
+        toast.classList.remove('clickable');
+      }, ms);
     }
 
     // --- Notifications ---
+    let pendingNotifyAlert = null;
+
+    function renderNotifyAlertBanner() {
+      const wrap = document.getElementById('notify-alert-wrap');
+      const el = document.getElementById('notify-alert');
+      if (!wrap || !el) return;
+      const a = pendingNotifyAlert;
+      if (!a) {
+        wrap.classList.remove('visible');
+        el.innerHTML = '';
+        return;
+      }
+      const where = [
+        a.title,
+        a.prNumber != null ? `#${a.prNumber}` : null
+      ].filter(Boolean).join(' · ');
+      wrap.classList.add('visible');
+      el.innerHTML = `
+        <div class="body">
+          <strong>Last alert</strong>
+          — ${escapeHtml(a.body)}
+          ${where ? `<span class="where">${escapeHtml(where)}</span>` : ''}
+        </div>
+        <button type="button" onclick="jumpToNotifyAlert()">Open</button>
+        <button type="button" onclick="dismissNotifyAlert()">Dismiss</button>`;
+    }
+
+    function pushNotifyAlert({ title, body, projectId = null, prNumber = null }) {
+      if (!projectId && prNumber == null) return;
+      pendingNotifyAlert = {
+        title: title || 'Dashboard',
+        body: body || '',
+        projectId: projectId || null,
+        prNumber: prNumber != null ? Number(prNumber) : null,
+        at: Date.now()
+      };
+      renderNotifyAlertBanner();
+    }
+
+    function dismissNotifyAlert() {
+      pendingNotifyAlert = null;
+      renderNotifyAlertBanner();
+    }
+
+    /** Clear sticky Last alert once the user opens or engages the target PR. */
+    function maybeDismissNotifyAlertFor(projectId, prNumber) {
+      const a = pendingNotifyAlert;
+      if (!a) return;
+      if (a.projectId && projectId && a.projectId !== projectId) return;
+      if (a.prNumber != null) {
+        if (prNumber == null || Number(prNumber) !== Number(a.prNumber)) return;
+      } else if (projectId && a.projectId && projectId !== a.projectId) {
+        return;
+      }
+      dismissNotifyAlert();
+    }
+
+    function jumpToNotifyAlert() {
+      const a = pendingNotifyAlert;
+      if (!a) return;
+      focusNotifyTarget(a.projectId, a.prNumber);
+      dismissNotifyAlert();
+    }
     const NOTIFY_KEY = 'dev-dashboard-notify-v1';
     const NOTIFY_SOUND_OPTIONS = [
       { id: 'knock', name: 'Knock' },
@@ -2761,6 +3328,8 @@
     };
     let notifyPrefs = { ...NOTIFY_DEFAULTS };
     let notifySnapshot = null; // first poll baselines without firing
+    // Once we fire for a condition, stay quiet until it truly clears (ignores poll flaps).
+    let notifyLatched = new Set();
     let notifyAudioCtx = null;
     let notifySoundSelectsReady = false;
     let githubLogin = null;
@@ -2768,9 +3337,38 @@
     const CR_DONE = new Set(['clear', 'leftover', 'delivery']);
     // REST often parks CR as "pending" between GraphQL ticks — ignore that flap for alerts.
     const CR_NOTIFY_TRANSIENT = new Set(['pending']);
+    // CI "running"/null between checks should not unlatch a failing alert.
+    const CI_NOTIFY_CLEAR = new Set(['passing']);
+    // Leaving actionable/busy for a real outcome — not pending/empty flicker.
+    const CR_ACTIONABLE_CLEAR = new Set(['clear', 'leftover', 'delivery', ...CR_BUSY]);
+    const CR_DONE_CLEAR = new Set(['actionable', 'empty', ...CR_BUSY]);
+
+    /** Fire at most once per key while active; clear latch only when stillActive is false. */
+    function emitLatched(key, stillActive, payload) {
+      if (!stillActive) {
+        notifyLatched.delete(key);
+        return false;
+      }
+      if (notifyLatched.has(key)) return false;
+      notifyLatched.add(key);
+      emitDashboardNotify(payload);
+      return true;
+    }
 
     const PR_MARKS_KEY = 'dev-dashboard-pr-marks-v1';
     let prMarks = {};
+    const CR_STATE_RANK = {
+      actionable: 6,
+      leftover: 6,
+      delivery: 6,
+      autofixing: 5.5,
+      limited: 5.5,
+      reviewing: 5,
+      ready: 4,
+      pending: 2,
+      clear: 1,
+      empty: 0
+    };
 
     function loadPrMarks() {
       try {
@@ -2782,28 +3380,243 @@
       }
     }
 
+    let sharedPrMarks = null, prMarksImportStarted = false, prMarkWrites = 0;
+    let prMarkQueue = Promise.resolve();
+    function queuePrMarkWrite(payload) {
+      prMarkWrites++;
+      prMarkQueue = prMarkQueue.then(async () => {
+        const res = await fetch('/api/pr-marks', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const data = await res.json();
+        if (!res.ok || data.ok === false) throw Error(data.error || 'Could not save PR settings');
+        // Respect local changes queued after this write; the next status poll reconciles.
+        if (prMarkWrites === 1) { sharedPrMarks=JSON.parse(JSON.stringify(data.marks)); prMarks=data.marks; try { localStorage.setItem(PR_MARKS_KEY,JSON.stringify(prMarks)); } catch {} }
+      }).catch(error => showToast('PR settings: ' + error.message)).finally(() => { prMarkWrites--; });
+    }
+    async function syncSharedPrMarks(marks) {
+      if (!marks || typeof marks !== 'object') return;
+      if (!prMarksImportStarted) {
+        prMarksImportStarted=true;
+        if (Object.keys(prMarks).length) { queuePrMarkWrite({import:prMarks}); await prMarkQueue; return; }
+      }
+      if (!prMarkWrites) { sharedPrMarks=JSON.parse(JSON.stringify(marks)); prMarks=marks; }
+    }
     function savePrMarks() {
-      try {
-        localStorage.setItem(PR_MARKS_KEY, JSON.stringify(prMarks));
-      } catch { /* ignore */ }
+      try { localStorage.setItem(PR_MARKS_KEY, JSON.stringify(prMarks)); } catch { /* ignore */ }
+      if (!sharedPrMarks) return;
+      for (const key of new Set([...Object.keys(sharedPrMarks),...Object.keys(prMarks)])) {
+        const current=sharedPrMarks[key]||{}, next=prMarks[key]||{}, patch={};
+        for (const field of ['waiting','quietCi','quietCr']) if (JSON.stringify(current[field])!==JSON.stringify(next[field])) patch[field]=next[field]??null;
+        if (!Object.keys(patch).length) continue;
+        const index=key.lastIndexOf('#');
+        queuePrMarkWrite({projectId:key.slice(0,index),pr:Number(key.slice(index+1)),patch});
+        sharedPrMarks={...sharedPrMarks,[key]:{...next}};
+      }
     }
 
     function prMarkKey(projectId, prNumber) {
       return `${projectId}#${prNumber}`;
     }
 
+    function getPrMark(projectId, prNumber) {
+      return prMarks[prMarkKey(projectId, prNumber)] || {};
+    }
+
+    function writePrMark(projectId, prNumber, next) {
+      const key = prMarkKey(projectId, prNumber);
+      if (!next || (!next.waiting && !next.quietCi && !next.quietCr)) {
+        delete prMarks[key];
+      } else {
+        prMarks[key] = next;
+      }
+      savePrMarks();
+    }
+
     function isWaitingOnAuthor(projectId, prNumber) {
-      return !!prMarks[prMarkKey(projectId, prNumber)]?.waiting;
+      return !!getPrMark(projectId, prNumber).waiting;
     }
 
     function setWaitingOnAuthor(projectId, prNumber, waiting) {
-      const key = prMarkKey(projectId, prNumber);
-      if (waiting) {
-        prMarks[key] = { waiting: true, at: new Date().toISOString() };
-      } else {
-        delete prMarks[key];
+      const cur = { ...getPrMark(projectId, prNumber) };
+      if (waiting) cur.waiting = true;
+      else delete cur.waiting;
+      if (waiting && !cur.at) cur.at = new Date().toISOString();
+      writePrMark(projectId, prNumber, cur);
+    }
+
+    function ciFingerprint(pr) {
+      return String(pr?.ci || 'none');
+    }
+
+    function crFingerprint(pr) {
+      const cr = pr?.cr || {};
+      return `${cr.state || 'empty'}:${Number(cr.actionable) || 0}`;
+    }
+
+    /** Non-passing CI flaps (none/running/failing) should not unquiet. */
+    function ciQuietShouldClear(quietMark, pr) {
+      if (!quietMark) return false;
+      const now = ciFingerprint(pr);
+      if (now === quietMark.fp) return false;
+      // Real resolution: checks went green.
+      if (now === 'passing') return true;
+      // Still not green — keep quiet through GraphQL/REST flaps.
+      return false;
+    }
+
+    /** CR flaps like pending↔reviewing with same actionable should not unquiet. */
+    function crQuietShouldClear(quietMark, pr) {
+      if (!quietMark) return false;
+      const now = crFingerprint(pr);
+      if (now === quietMark.fp) return false;
+      const cr = pr?.cr || {};
+      const state = cr.state || 'empty';
+      const actionable = Number(cr.actionable) || 0;
+      const parts = String(quietMark.fp || '').split(':');
+      const wasState = parts[0] || 'empty';
+      const wasActionable = Number(parts[1]) || 0;
+      if (actionable > wasActionable) return true;
+      if (state === 'actionable' && wasState !== 'actionable') return true;
+      if (
+        (state === 'leftover' || state === 'delivery')
+        && state !== wasState
+        && wasState !== 'actionable'
+        && wasState !== 'leftover'
+        && wasState !== 'delivery'
+      ) {
+        return true;
       }
-      savePrMarks();
+      return false;
+    }
+
+    // Draft and soaking (npm age-check) PRs are always quiet: no CI/CR feedback, excluded from health + notify.
+    let autoQuietPrKeys = new Set();
+    function refreshAutoQuietPrs(projects) {
+      const next = new Set();
+      for (const proj of projects || []) {
+        for (const pr of projectPrs(proj)) {
+          if (pr.draft || pr.soak) next.add(prMarkKey(proj.id, pr.number));
+        }
+      }
+      autoQuietPrKeys = next;
+    }
+    function isAutoQuietPr(projectId, prNumber) {
+      return autoQuietPrKeys.has(prMarkKey(projectId, prNumber));
+    }
+
+    function isQuietCi(projectId, prNumber) {
+      return isAutoQuietPr(projectId, prNumber) || !!getPrMark(projectId, prNumber).quietCi;
+    }
+
+    function isQuietCr(projectId, prNumber) {
+      return isAutoQuietPr(projectId, prNumber) || !!getPrMark(projectId, prNumber).quietCr;
+    }
+
+    function setQuietCi(projectId, prNumber, quiet, pr) {
+      const cur = { ...getPrMark(projectId, prNumber) };
+      if (quiet) {
+        cur.quietCi = { at: new Date().toISOString(), fp: ciFingerprint(pr) };
+      } else {
+        delete cur.quietCi;
+      }
+      writePrMark(projectId, prNumber, cur);
+    }
+
+    function setQuietCr(projectId, prNumber, quiet, pr) {
+      const cur = { ...getPrMark(projectId, prNumber) };
+      if (quiet) {
+        cur.quietCr = { at: new Date().toISOString(), fp: crFingerprint(pr) };
+      } else {
+        delete cur.quietCr;
+      }
+      writePrMark(projectId, prNumber, cur);
+    }
+
+    /** Drop quiet marks only on meaningful CI/CR improvements — not poll flaps. */
+    function reconcilePrMarks(projects) {
+      let changed = false;
+      for (const proj of projects || []) {
+        for (const pr of projectPrs(proj)) {
+          const key = prMarkKey(proj.id, pr.number);
+          const mark = prMarks[key];
+          if (!mark) continue;
+          const next = { ...mark };
+          let localChange = false;
+          if (next.quietCi && ciQuietShouldClear(next.quietCi, pr)) {
+            delete next.quietCi;
+            localChange = true;
+          }
+          if (next.quietCr && crQuietShouldClear(next.quietCr, pr)) {
+            delete next.quietCr;
+            localChange = true;
+          }
+          if (!next.waiting && !next.quietCi && !next.quietCr) {
+            delete prMarks[key];
+            changed = true;
+          } else if (localChange) {
+            prMarks[key] = next;
+            changed = true;
+          }
+        }
+      }
+      if (changed) savePrMarks();
+      return changed;
+    }
+
+    function effectiveCi(proj) {
+      const rankCi = { failing: 4, running: 3, 'automerge-blocked': 2, passing: 1 };
+      const prs = projectPrs(proj);
+      if (!prs.length) return proj.ci || null;
+      let best = null;
+      let sawAny = false;
+      for (const pr of prs) {
+        if (isQuietCi(proj.id, pr.number)) continue;
+        sawAny = true;
+        if ((rankCi[pr.ci] || 0) > (rankCi[best] || 0)) best = pr.ci;
+      }
+      return sawAny ? best : null;
+    }
+
+    function effectiveCr(proj) {
+      const all = projectPrs(proj);
+      const prs = all.filter((pr) => !isQuietCr(proj.id, pr.number));
+      if (!prs.length) {
+        return {
+          state: 'empty',
+          actionable: 0,
+          openPrs: all.length,
+          tip: all.length ? 'All open PRs CR-quieted' : null,
+          detail: null,
+          prNumber: null,
+          prUrl: null
+        };
+      }
+      let best = null;
+      let actionableTotal = 0;
+      for (const pr of prs) {
+        const cr = pr.cr || {};
+        const state = cr.state || 'empty';
+        actionableTotal += Number(cr.actionable) || 0;
+        const ranked = {
+          ...cr,
+          state,
+          prNumber: pr.number,
+          prUrl: pr.url || cr.prUrl || null
+        };
+        if (!best || (CR_STATE_RANK[state] || 0) > (CR_STATE_RANK[best.state] || 0)) {
+          best = ranked;
+        }
+      }
+      return {
+        ...(proj.cr || {}),
+        ...best,
+        state: best.state || 'empty',
+        actionable: actionableTotal,
+        openPrs: all.length,
+        tip: best.tip || null,
+        detail: best.detail || null,
+        prNumber: best.prNumber || null,
+        prUrl: best.prUrl || null
+      };
     }
 
     function loadNotifyPrefs() {
@@ -3040,10 +3853,15 @@
       playNotifySoundId(soundId, volume);
     }
 
-    function emitDashboardNotify({ title, body, tag, forceToast = false, soundId }) {
+    function emitDashboardNotify({ title, body, tag, forceToast = false, soundId, projectId = null, prNumber = null }) {
       if (!notifyPrefs.enabled) return;
       if (notifyPrefs.sound) {
         playNotifySoundId(soundId || notifyPrefs.soundCrDone || 'ping-double');
+      }
+
+      const hasTarget = !!(projectId || prNumber != null);
+      if (hasTarget) {
+        pushNotifyAlert({ title, body, projectId, prNumber });
       }
 
       let postedOs = false;
@@ -3056,7 +3874,8 @@
           });
           postedOs = true;
           n.onclick = () => {
-            window.focus();
+            try { window.focus(); } catch { /* ignore */ }
+            if (hasTarget) focusNotifyTarget(projectId, prNumber);
             n.close();
           };
         } catch (err) {
@@ -3066,15 +3885,26 @@
 
       // macOS / Chrome often suppress the banner while this tab is focused.
       const tabVisible = document.visibilityState === 'visible';
-      if (
+      const showInApp = (
         forceToast
         || !postedOs
         || tabVisible
         || !notifyPrefs.browser
         || !('Notification' in window)
         || Notification.permission !== 'granted'
-      ) {
-        showToast(`${title}: ${body}`, forceToast ? 6000 : 3500);
+        || hasTarget
+      );
+      if (showInApp) {
+        showToast(
+          `${title}: ${body}`,
+          hasTarget ? 8000 : (forceToast ? 6000 : 3500),
+          hasTarget
+            ? {
+                hint: 'Click to open · also pinned at top',
+                onClick: () => focusNotifyTarget(projectId, prNumber)
+              }
+            : null
+        );
       }
     }
 
@@ -3124,15 +3954,30 @@
     }
 
     function projectNotifySnap(proj) {
-      const cr = proj.cr || {};
+      const cr = effectiveCr(proj);
       const agent = proj.agent && proj.agent.working ? proj.agent : null;
       const linger = agent ? agentSessionLinger(agent) : null;
+      let ciPr = null;
+      for (const pr of projectPrs(proj)) {
+        if (isQuietCi(proj.id, pr.number)) continue;
+        if (pr.ci === 'failing') {
+          ciPr = pr.number;
+          break;
+        }
+      }
+      const agentPr = agent?.pr != null && Number.isFinite(Number(agent.pr))
+        ? Number(agent.pr)
+        : null;
       return {
         crState: cr.state || 'empty',
-        ci: proj.ci || null,
+        ci: effectiveCi(proj) || null,
         agentWorking: !!agent,
         agentStartedAt: agent?.startedAt || null,
-        linger: !!linger?.linger
+        linger: !!linger?.linger,
+        crPr: cr.prNumber || null,
+        ciPr,
+        agentPr,
+        soaking: projectPrs(proj).filter((pr) => pr.soak?.state === 'soaking').map((pr) => pr.number)
       };
     }
 
@@ -3175,6 +4020,18 @@
       }
 
       if (!notifySnapshot) {
+        // Baseline: latch any already-active conditions so we don't fire on first real poll.
+        for (const proj of projects || []) {
+          const id = proj.id;
+          const cur = next[id];
+          if (!cur) continue;
+          const crPrKey = cur.crPr ? `-pr${cur.crPr}` : '';
+          const ciPrKey = cur.ciPr ? `-pr${cur.ciPr}` : '';
+          if (cur.crState === 'actionable') notifyLatched.add(`cr-actionable-${id}${crPrKey}`);
+          if (CR_DONE.has(cur.crState)) notifyLatched.add(`cr-done-${id}${crPrKey}-${cur.crState}`);
+          if (cur.ci === 'failing') notifyLatched.add(`ci-fail-${id}${ciPrKey}`);
+          if (cur.linger) notifyLatched.add(`agent-linger-${id}-${cur.agentStartedAt || ''}`);
+        }
         notifySnapshot = next;
         return;
       }
@@ -3189,71 +4046,112 @@
         const prev = notifySnapshot[id];
         if (!cur) continue;
         const name = proj.name || id;
-        const pr = proj.cr?.prNumber ? ` #${proj.cr.prNumber}` : '';
+        const crPrLabel = cur.crPr ? ` #${cur.crPr}` : '';
+        const ciPrLabel = cur.ciPr ? ` #${cur.ciPr}` : '';
+        const agentPrLabel = cur.agentPr ? ` #${cur.agentPr}` : (crPrLabel || '');
+        const crPrKey = cur.crPr ? `-pr${cur.crPr}` : '';
+        const ciPrKey = cur.ciPr ? `-pr${cur.ciPr}` : '';
 
         if (!prev) continue;
 
         const mineOk = !notifyPrefs.mineOnly || isMyPrForNotify(proj);
 
-        if (
-          mineOk
-          && notifyPrefs.crActionable
-          && cur.crState === 'actionable'
-          && prev.crState !== 'actionable'
-          && !CR_NOTIFY_TRANSIENT.has(prev.crState)
-        ) {
-          const n = Number(proj.cr?.actionable) || 0;
-          emitDashboardNotify({
-            title: name,
-            body: n > 0 ? `CR: ${n} actionable${pr}` : `CR actionable${pr}`,
-            tag: `cr-actionable-${id}`,
-            soundId: notifyPrefs.soundCrActionable
-          });
+        // CR actionable: once until state settles away (pending flaps keep the latch).
+        {
+          const key = `cr-actionable-${id}${crPrKey}`;
+          if (CR_ACTIONABLE_CLEAR.has(cur.crState) || cur.crState === 'empty') {
+            notifyLatched.delete(key);
+          }
+          if (mineOk && notifyPrefs.crActionable && cur.crState === 'actionable') {
+            const n = Number(proj.cr?.actionable) || 0;
+            emitLatched(key, true, {
+              title: name,
+              body: n > 0 ? `CR: ${n} actionable${crPrLabel}` : `CR actionable${crPrLabel}`,
+              tag: `cr-actionable-${id}`,
+              soundId: notifyPrefs.soundCrActionable,
+              projectId: id,
+              prNumber: cur.crPr || null
+            });
+          }
         }
 
-        if (
-          mineOk
-          && notifyPrefs.crDone
-          && CR_BUSY.has(prev.crState)
-          && CR_DONE.has(cur.crState)
-        ) {
-          const label = cur.crState === 'leftover'
-            ? (proj.cr?.tip || 'Autofix done · threads left')
-            : cur.crState === 'delivery'
-              ? 'Autofix delivery blocked'
-              : 'CR clear — good to go';
-          emitDashboardNotify({
-            title: name,
-            body: `${label}${pr}`,
-            tag: `cr-done-${id}`,
-            soundId: notifyPrefs.soundCrDone
-          });
+        // CR done (left busy): once per busy→done episode.
+        {
+          const key = `cr-done-${id}${crPrKey}-${cur.crState}`;
+          if (CR_DONE_CLEAR.has(cur.crState)) {
+            for (const k of [...notifyLatched]) {
+              if (k.startsWith(`cr-done-${id}${crPrKey}-`)) notifyLatched.delete(k);
+            }
+          }
+          if (
+            mineOk
+            && notifyPrefs.crDone
+            && CR_BUSY.has(prev.crState)
+            && CR_DONE.has(cur.crState)
+          ) {
+            const label = cur.crState === 'leftover'
+              ? (proj.cr?.tip || 'Autofix done · threads left')
+              : cur.crState === 'delivery'
+                ? 'Autofix delivery blocked'
+                : 'CR clear — good to go';
+            emitLatched(key, true, {
+              title: name,
+              body: `${label}${crPrLabel}`,
+              tag: `cr-done-${id}`,
+              soundId: notifyPrefs.soundCrDone,
+              projectId: id,
+              prNumber: cur.crPr || null
+            });
+          }
         }
 
-        if (
-          mineOk
-          && notifyPrefs.ciFailing
-          && cur.ci === 'failing'
-          && prev.ci !== 'failing'
-        ) {
-          emitDashboardNotify({
-            title: name,
-            body: `CI failing${pr}`,
-            tag: `ci-fail-${id}`,
-            soundId: notifyPrefs.soundCiFailing
-          });
+        // CI failing: once until passing (running keeps the latch so mid-rerun flaps stay quiet).
+        {
+          const key = `ci-fail-${id}${ciPrKey}`;
+          if (CI_NOTIFY_CLEAR.has(cur.ci)) notifyLatched.delete(key);
+          if (cur.ci == null && cur.crState === 'empty') notifyLatched.delete(key);
+          if (mineOk && notifyPrefs.ciFailing && cur.ci === 'failing') {
+            emitLatched(key, true, {
+              title: name,
+              body: `CI failing${ciPrLabel}`,
+              tag: `ci-fail-${id}`,
+              soundId: notifyPrefs.soundCiFailing,
+              projectId: id,
+              prNumber: cur.ciPr || null
+            });
+          }
         }
 
-        if (
-          notifyPrefs.agentLinger
-          && cur.linger
-          && (!prev.linger || prev.agentStartedAt !== cur.agentStartedAt)
-        ) {
-          emitDashboardNotify({
+        // Agent linger: once per agent session (startedAt). Keep latch across brief agent flaps.
+        {
+          const key = `agent-linger-${id}-${cur.agentStartedAt || ''}`;
+          if (cur.agentStartedAt) {
+            for (const k of [...notifyLatched]) {
+              if (k.startsWith(`agent-linger-${id}-`) && k !== key) notifyLatched.delete(k);
+            }
+          }
+          if (notifyPrefs.agentLinger && cur.linger && cur.agentStartedAt) {
+            emitLatched(key, true, {
+              title: name,
+              body: `Agent still working${agentPrLabel} — maybe check in`,
+              tag: key,
+              soundId: notifyPrefs.soundAgentLinger,
+              projectId: id,
+              prNumber: cur.agentPr || cur.crPr || null
+            });
+          }
+        }
+
+        // Soak ended: once when a PR goes soaking → ready (Dependabot PRs aren't "mine", so no mineOnly gate).
+        for (const pr of projectPrs(proj)) {
+          if (pr.soak?.state !== 'ready' || !(prev.soaking || []).includes(pr.number)) continue;
+          emitLatched(`soak-ready-${id}-pr${pr.number}-${pr.soak.until}`, true, {
             title: name,
-            body: `Agent still working${pr} — maybe check in`,
-            tag: `agent-linger-${id}-${cur.agentStartedAt || ''}`,
-            soundId: notifyPrefs.soundAgentLinger
+            body: `Soak ended for #${pr.number} — rebase if Dependabot hasn't`,
+            tag: `soak-ready-${id}-${pr.number}`,
+            soundId: notifyPrefs.soundCrDone,
+            projectId: id,
+            prNumber: pr.number
           });
         }
       }
@@ -3326,6 +4224,7 @@
         const data = await res.json();
         const projects = Array.isArray(data) ? data : (data.projects || []);
         lastProjects = projects;
+        if (Array.isArray(data?.groups)) lastGroups = data.groups.map(String);
         lastRateLimit = (data && data.rateLimit) || { private: null, oss: null };
         lastApiLimit = (data && data.apiLimit) || { restUntil: null, graphqlUntil: null };
         if (data?.github?.login) githubLogin = data.github.login;
@@ -3335,10 +4234,15 @@
         }
         // --- CR Autofix (removable) ---
         crAutofixEnabled = data?.features?.crAutofix !== false;
+        maybeToastCrQueueFire(data?.crQueueFire);
         // --- end CR Autofix ---
+        await syncSharedPrMarks(data?.prMarks);
+        refreshAutoQuietPrs(projects);
+        reconcilePrMarks(projects);
         processNotifyDiff(projects);
         renderApiLimitBanner(lastApiLimit);
         renderRateLimitBanner(lastRateLimit);
+        renderPortCollisionBanner(projects);
         renderProjects(projects);
       } catch (err) {
         console.error('Failed to fetch status:', err);
@@ -3383,7 +4287,10 @@
     const ACTIVE_PROJECT_KEY = 'dev-dashboard-active-project';
     const SELECTED_PR_KEY = 'dev-dashboard-selected-pr';
     let activeProjectId = null;
-    try { activeProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || null; } catch { /* ignore */ }
+    try {
+      const qProj = new URLSearchParams(window.location.search).get('project');
+      activeProjectId = qProj || localStorage.getItem(ACTIVE_PROJECT_KEY) || null;
+    } catch { /* ignore */ }
     let selectedPrByProject = {};
     try {
       const raw = localStorage.getItem(SELECTED_PR_KEY);
@@ -3409,13 +4316,44 @@
     function selectProject(projectId) {
       persistActiveProject(projectId);
       openCrMenuId = null;
+      openProjectQuietId = null;
       if (lastProjects.length) renderProjects(lastProjects);
     }
 
     function selectPr(projectId, prNumber) {
       persistSelectedPr(projectId, prNumber);
       openCrMenuId = null;
+      maybeDismissNotifyAlertFor(projectId, prNumber);
       if (lastProjects.length) renderProjects(lastProjects);
+    }
+
+    /** Focus dashboard on a project/PR from a desktop notification click. */
+    function focusNotifyTarget(projectId, prNumber) {
+      if (!projectId && prNumber == null) return;
+      if (projectId) persistActiveProject(projectId);
+      if (projectId && prNumber != null) persistSelectedPr(projectId, Number(prNumber));
+      openCrMenuId = null;
+      openProjectQuietId = null;
+      maybeDismissNotifyAlertFor(projectId, prNumber);
+      if (lastProjects.length) renderProjects(lastProjects);
+      if (prNumber == null) return;
+      const want = Number(prNumber);
+      const flash = () => {
+        const card = document.querySelector(`.pr-card[data-pr="${want}"]`);
+        if (!card) return false;
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        card.classList.remove('notify-flash');
+        void card.offsetWidth;
+        card.classList.add('notify-flash');
+        const clear = () => card.classList.remove('notify-flash');
+        card.addEventListener('animationend', clear, { once: true });
+        setTimeout(clear, 2500);
+        return true;
+      };
+      requestAnimationFrame(() => {
+        if (flash()) return;
+        setTimeout(flash, 120);
+      });
     }
 
     function projectPrs(proj) {
@@ -3441,12 +4379,7 @@
     }
 
     function sideBestCi(proj) {
-      const rankCi = { failing: 3, running: 2, passing: 1 };
-      let best = proj.ci || null;
-      for (const pr of projectPrs(proj)) {
-        if ((rankCi[pr.ci] || 0) > (rankCi[best] || 0)) best = pr.ci;
-      }
-      return best;
+      return effectiveCi(proj);
     }
 
     function sideAvatarHtml(proj) {
@@ -3457,6 +4390,24 @@
         .replace(/width="40"|height="40"/g, '');
     }
 
+    function setHtmlIfChanged(el, html) {
+      if (!el) return false;
+      if (el._dashHtml === html) return false;
+      el._dashHtml = html;
+      el.innerHTML = html;
+      return true;
+    }
+
+    function setTextIfChanged(el, text) {
+      if (!el) return false;
+      const next = text == null ? '' : String(text);
+      if (el.textContent === next) return false;
+      el.textContent = next;
+      return true;
+    }
+
+    let lastMainProjectId = null;
+
     function renderProjects(projects) {
       const ordered = sortProjectsBySavedOrder(projects);
 
@@ -3465,11 +4416,14 @@
       if (missing.length) saveProjectOrder([...loadProjectOrder(), ...missing]);
 
       if (!ordered.length) {
-        document.getElementById('side-list').innerHTML = `
-          <div class="panel-empty" style="padding:8px">No projects yet. Copy the agent prompt to register one.</div>`;
+        setHtmlIfChanged(
+          document.getElementById('side-list'),
+          `<div class="panel-empty" style="padding:8px">No projects yet. Copy the agent prompt to register one.</div>`
+        );
         document.getElementById('main-empty').hidden = false;
         document.getElementById('main-empty').textContent = 'No projects yet';
         document.getElementById('main-filled').hidden = true;
+        lastMainProjectId = null;
         return;
       }
 
@@ -3477,21 +4431,56 @@
         persistActiveProject(ordered[0].id);
       }
 
-      document.getElementById('side-list').innerHTML = ordered.map((proj) => {
+      const reviewCount = (proj) => projectPrs(proj).filter((pr) => prMergeBlockKind(proj, pr) === 'review').length;
+      const itemHtml = (proj) => {
         const ci = sideBestCi(proj);
         const ciClass = ci === 'failing' ? ' ci-failing'
           : ci === 'running' ? ' ci-running'
           : ci === 'passing' ? ' ci-passing'
           : '';
+        const toReview = reviewCount(proj);
+        const reviewBadge = toReview
+          ? `<span class="side-review" title="${toReview} PR${toReview === 1 ? '' : 's'} waiting on your review">${toReview} to review</span>`
+          : '';
         return `
           <button type="button" class="side-item${ciClass}${proj.id === activeProjectId ? ' active' : ''}"
             data-project-id="${escapeHtml(proj.id)}"
             ${ci ? `data-ci="${escapeHtml(ci)}"` : ''}>
-            <div class="n">${sideAvatarHtml(proj)}<span>${escapeHtml(proj.name)}</span></div>
+            <div class="n">${sideAvatarHtml(proj)}<span>${escapeHtml(proj.name)}</span>${reviewBadge}</div>
           </button>`;
+      };
+
+      const collapsed = loadCollapsedGroups();
+      const groups = groupProjects(ordered);
+      const showHeaders = groups.length > 1 || groups[0]?.name !== UNGROUPED;
+      const sideHtml = !showHeaders ? ordered.map(itemHtml).join('') : groups.map(({ name, projects: list }) => {
+        const isCollapsed = collapsed.has(name);
+        // A collapsed group still shows its selected project and rolls up what needs attention.
+        const visible = isCollapsed ? list.filter((p) => p.id === activeProjectId) : list;
+        let summary = '';
+        if (isCollapsed) {
+          const failing = list.filter((p) => sideBestCi(p) === 'failing').length;
+          const toReview = list.reduce((n, p) => n + reviewCount(p), 0);
+          if (toReview) summary += `<span class="side-review" title="${toReview} PR${toReview === 1 ? '' : 's'} waiting on your review">${toReview} to review</span>`;
+          if (failing) summary += `<span class="side-group-fail" title="CI failing in ${failing} project${failing === 1 ? '' : 's'}"></span>`;
+        }
+        return `
+          <div class="side-group${isCollapsed ? ' collapsed' : ''}">
+            <button type="button" class="side-group-h" data-group="${escapeHtml(name)}" aria-expanded="${!isCollapsed}">
+              <span class="chev">▾</span>
+              <span class="name">${escapeHtml(name)}</span>
+              <span class="count">${list.length}</span>
+              ${summary}
+            </button>
+            ${visible.map(itemHtml).join('')}
+          </div>`;
       }).join('');
 
-      bindCardDragHandlers();
+      const sideEl = document.getElementById('side-list');
+      if (setHtmlIfChanged(sideEl, sideHtml)) {
+        bindCardDragHandlers();
+      }
+
       try {
         renderMainDetail(ordered.find((p) => p.id === activeProjectId) || ordered[0]);
       } catch (err) {
@@ -3499,18 +4488,100 @@
       }
       ensureCiCometLoop();
       ensureReviewCometLoop();
+      pinOpenFloaters();
     }
 
-    function agentStripHtml(proj) {
+    // Popups inside scrolling panels would be clipped, so pin them to the viewport instead.
+    function pinFloater(el, anchor, { align = 'left', above = false } = {}) {
+      if (!el || !anchor || !el.closest('.panel-scroll')) return;
+      const FLOATER_GAP = 6;
+      el.style.position = 'fixed';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.zIndex = '60';
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (!w || !h) return;
+      const a = anchor.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let left = align === 'right' ? a.right - w : a.left;
+      left = Math.max(8, Math.min(left, vw - w - 8));
+      const below = a.bottom + FLOATER_GAP;
+      const over = a.top - FLOATER_GAP - h;
+      let top;
+      if (above) top = over >= 8 ? over : below;
+      else top = below + h <= vh - 8 || over < 8 ? below : over;
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+    }
+
+    function anchorOutOfPane(anchor) {
+      const pane = anchor.closest('.panel-scroll');
+      if (!pane) return false;
+      const a = anchor.getBoundingClientRect();
+      const p = pane.getBoundingClientRect();
+      return a.bottom < p.top || a.top > p.bottom;
+    }
+
+    function pinOpenFloaters({ closeHidden = false } = {}) {
+      let crHidden = false;
+      document.querySelectorAll('.panel-scroll .cr-menu.open').forEach((m) => {
+        const anchor = m.closest('.cr-wrap') || m.parentElement;
+        if (closeHidden && anchorOutOfPane(anchor)) crHidden = true;
+        else pinFloater(m, anchor, { align: 'right' });
+      });
+      document.querySelectorAll('.panel-scroll .link-menu.open').forEach((m) => {
+        if (closeHidden && anchorOutOfPane(m.parentElement)) closeLinkMenus();
+        else pinFloater(m, m.parentElement, { align: 'left' });
+      });
+      document.querySelectorAll('.panel-scroll .gh-wrap:hover > .gh-tip').forEach((tip) => {
+        pinFloater(tip, tip.parentElement, { align: 'left', above: true });
+      });
+      if (crHidden) closeCrMenus();
+    }
+
+    document.addEventListener('mouseover', (event) => {
+      const wrap = event.target instanceof Element && event.target.closest('.panel-scroll .gh-wrap');
+      if (!wrap) return;
+      const tip = wrap.querySelector(':scope > .gh-tip');
+      if (tip) pinFloater(tip, wrap, { align: 'left', above: true });
+    });
+    document.addEventListener('scroll', (event) => {
+      if (event.target instanceof Element && event.target.classList.contains('panel-scroll')) {
+        pinOpenFloaters({ closeHidden: true });
+      }
+    }, true);
+    window.addEventListener('resize', () => pinOpenFloaters());
+
+    function agentWorkingOnPr(proj, prNumber) {
       const agent = proj.agent && proj.agent.working ? proj.agent : null;
-      const agentLinger = agent ? agentSessionLinger(agent) : null;
-      const crState = proj.cr?.state || '';
-      const autofixing = crAutofixEnabled && crState === 'autofixing';
-      const crReviewing = crAutofixEnabled && crState === 'reviewing' && proj.cr?.autofix?.phase === 'reviewing';
-      const autofixDelivery = crAutofixEnabled && crState === 'delivery';
-      const autofixLeftover = crAutofixEnabled && crState === 'leftover';
-      const prChip = proj.cr?.prNumber
-        ? `<span class="pr">#${escapeHtml(String(proj.cr.prNumber))}</span>`
+      if (!agent || agent.pr == null || agent.pr === '') return null;
+      const n = Number(agent.pr);
+      if (!Number.isFinite(n) || n !== Number(prNumber)) return null;
+      return agent;
+    }
+
+    function agentHasOpenPrTarget(proj) {
+      const agent = proj.agent && proj.agent.working ? proj.agent : null;
+      if (!agent || agent.pr == null || agent.pr === '') return false;
+      const n = Number(agent.pr);
+      if (!Number.isFinite(n)) return false;
+      return projectPrs(proj).some((pr) => pr.number === n);
+    }
+
+    function crStatusStripHtml(proj, { prNumber = null, onPrCard = false } = {}) {
+      if (!crAutofixEnabled) return '';
+      const cr = effectiveCr(proj);
+      const crState = cr.state || '';
+      const autofixing = crState === 'autofixing';
+      const crReviewing = crState === 'reviewing' && cr.autofix?.phase === 'reviewing';
+      const autofixDelivery = crState === 'delivery';
+      const autofixLeftover = crState === 'leftover';
+      if (!autofixing && !crReviewing && !autofixDelivery && !autofixLeftover) return '';
+      if (prNumber != null && Number(cr.prNumber) !== Number(prNumber)) return '';
+      const prChip = !onPrCard && cr.prNumber
+        ? `<span class="pr">#${escapeHtml(String(cr.prNumber))}</span>`
         : '';
       if (autofixing) {
         return `<div class="agent-strip autofixing" title="CodeRabbit Autofix running"><span class="icon" aria-hidden="true">🐰</span><span class="summary">Autofix running…</span>${prChip}</div>`;
@@ -3521,22 +4592,48 @@
       if (autofixDelivery) {
         return `<div class="agent-strip delivery" title="Autofix delivery blocked"><span class="icon" aria-hidden="true">⚠️</span><span class="summary">Autofix delivery blocked</span>${prChip}</div>`;
       }
-      if (autofixLeftover) {
-        return `<div class="agent-strip leftover" title="Autofix finished; leftover threads may be stale"><span class="icon" aria-hidden="true">⚠️</span><span class="summary">${escapeHtml(proj.cr?.tip || 'Autofix done · threads left')}</span>${prChip}</div>`;
-      }
+      return `<div class="agent-strip leftover" title="Autofix finished; leftover threads may be stale"><span class="icon" aria-hidden="true">⚠️</span><span class="summary">${escapeHtml(cr.tip || 'Autofix done · threads left')}</span>${prChip}</div>`;
+    }
+
+    function agentWorkingStripHtml(agent, { onPrCard = false } = {}) {
       if (!agent) return '';
+      const agentLinger = agentSessionLinger(agent);
       const linger = !!agentLinger?.linger;
       const ageLabel = agentLinger?.ageLabel || '';
       const tip = linger
         ? `Agent working ${ageLabel} — maybe check in${agent.pr ? ` (PR #${String(agent.pr)})` : ''}`
         : `Agent working${agent.pr ? ` on PR #${String(agent.pr)}` : ''}`;
-      return `<div class="agent-strip${linger ? ' linger' : ''}" title="${escapeHtml(tip)}"><span class="icon">${ICON_BOT}</span>${agent.summary ? `<span class="summary">${escapeHtml(agent.summary)}</span>` : '<span class="summary">Working…</span>'}${agent.pr ? `<span class="pr">#${escapeHtml(String(agent.pr))}</span>` : ''}</div>`;
+      const prChip = !onPrCard && agent.pr
+        ? `<span class="pr">#${escapeHtml(String(agent.pr))}</span>`
+        : '';
+      return `<div class="agent-strip${linger ? ' linger' : ''}" title="${escapeHtml(tip)}"><span class="icon">${ICON_BOT}</span>${agent.summary ? `<span class="summary">${escapeHtml(agent.summary)}</span>` : '<span class="summary">Working…</span>'}${prChip}</div>`;
+    }
+
+    /** Project header: only strips that are not attached to an open PR card. */
+    function agentStripHtml(proj) {
+      const cr = effectiveCr(proj);
+      const crOnCard = cr.prNumber && projectPrs(proj).some((p) => p.number === cr.prNumber);
+      if (!crOnCard) {
+        const crStrip = crStatusStripHtml(proj, { onPrCard: false });
+        if (crStrip) return crStrip;
+      }
+      const agent = proj.agent && proj.agent.working ? proj.agent : null;
+      if (!agent) return '';
+      if (agentHasOpenPrTarget(proj)) return '';
+      return agentWorkingStripHtml(agent, { onPrCard: false });
+    }
+
+    /** Per-PR card strip: CR activity for this PR, else agent working on this PR. */
+    function prStatusStripHtml(proj, pr) {
+      const crStrip = crStatusStripHtml(proj, { prNumber: pr.number, onPrCard: true });
+      if (crStrip) return crStrip;
+      return agentWorkingStripHtml(agentWorkingOnPr(proj, pr.number), { onPrCard: true });
     }
 
     function openPrInBrowser(event, url) {
       if (!url || url === '#') return;
       // Don't steal clicks from the CR chip / menu.
-      if (event.target.closest('.cr-wrap')) return;
+      if (event.target.closest('.cr-wrap, .main-quiet-wrap')) return;
       window.open(url, '_blank', 'noopener,noreferrer');
     }
 
@@ -3546,25 +4643,42 @@
       const sel = selectedPrFor(proj);
       const selN = sel?.number;
       return `<div class="pr-list">${prs.map((pr) => {
-        const ci = pr.ci || null;
+        const draft = !!pr.draft;
+        const quietCi = !draft && isQuietCi(proj.id, pr.number);
+        const quietCr = !draft && isQuietCr(proj.id, pr.number);
+        const ci = (draft || quietCi) ? null : (pr.ci || null);
         const ciClass = ci === 'failing' ? 'ci-failing'
           : ci === 'running' ? 'ci-running'
           : ci === 'passing' ? 'ci-passing' : '';
         const isSel = pr.number === selN;
         const title = escapeHtml(pr.title || `PR #${pr.number}`);
         const href = pr.url ? escapeHtml(pr.url) : '';
-        const ciLabel = ci === 'running' ? 'CI running'
-          : ci === 'failing' ? 'CI failing'
-          : ci === 'passing' ? 'CI passing'
-          : 'No CI signal';
+        const ciLabel = quietCi
+          ? `CI ${pr.ci || 'unknown'} (quiet)`
+          : DashboardPrUI.ciLabel(ci);
+        const statusHtml = draft
+          ? '<span class="pr-draft">Draft</span>'
+          : pr.soak
+            ? prSoakChipHtml(proj, pr)
+            : `<span class="pr-ci">${escapeHtml(ciLabel)}</span>`;
         const author = pr.author?.login
           ? `<span class="pr-author">
               <img src="${escapeHtml(pr.author.avatarUrl || `https://github.com/${pr.author.login}.png?size=64`)}" alt="" loading="lazy" referrerpolicy="no-referrer">
               <span class="login">${escapeHtml(pr.author.login)}</span>
             </span>`
           : '';
+        const markCls = [
+          draft ? 'draft' : '',
+          isWaitingOnAuthor(proj.id, pr.number) ? 'waiting' : '',
+          quietCi && !pr.soak ? 'quiet-ci' : '',
+          quietCr ? 'quiet-cr' : '',
+          agentWorkingOnPr(proj, pr.number) ? 'agent-working' : ''
+        ].filter(Boolean).join(' ');
+        const statusStrip = draft
+          ? agentWorkingStripHtml(agentWorkingOnPr(proj, pr.number), { onPrCard: true })
+          : prStatusStripHtml(proj, pr);
         return `
-          <div class="pr-card ${ciClass} ${isSel ? 'sel' : ''} ${isWaitingOnAuthor(proj.id, pr.number) ? 'waiting' : ''}" data-pr="${pr.number}"
+          <div class="pr-card ${ciClass} ${isSel ? 'sel' : ''} ${markCls}" data-pr="${pr.number}"
             onclick="selectPr('${escapeHtml(proj.id)}', ${pr.number}); openPrInBrowser(event, '${href}')">
             <div class="pr-top">
               <div class="pr-body">
@@ -3572,13 +4686,135 @@
                 <div class="pr-title">${title}</div>
                 <div class="pr-foot">
                   ${author}
-                  <span class="pr-ci">${escapeHtml(ciLabel)}</span>
+                  ${statusHtml}
               </div>
             </div>
-              ${prCrChipHtml(proj, pr)}
+              <div class="pr-actions">
+                ${pr.soak ? ''
+                  : !draft && pr.mergeable ? prMergeButtonHtml(proj, pr)
+                  : prMergeBlockHtml(proj, pr)}
+                ${draft ? '' : prCrChipHtml(proj, pr)}
+              </div>
             </div>
+            ${statusStrip}
           </div>`;
       }).join('')}</div>`;
+    }
+
+    function prHasQuietableCi(pr) {
+      return pr?.ci === 'failing';
+    }
+
+    function prHasQuietableCr(pr) {
+      const cr = pr?.cr || {};
+      const state = cr.state || 'empty';
+      const actionable = Number(cr.actionable) || 0;
+      if (actionable > 0) return true;
+      return state === 'actionable' || state === 'leftover' || state === 'delivery';
+    }
+
+    function prQuietRelevant(proj, pr) {
+      return isQuietCi(proj.id, pr.number)
+        || isQuietCr(proj.id, pr.number)
+        || prHasQuietableCi(pr)
+        || prHasQuietableCr(pr);
+    }
+
+    function projectQuietPrs(proj) {
+      return projectPrs(proj).filter((pr) => !pr.draft && !pr.soak && prQuietRelevant(proj, pr));
+    }
+
+    function quietSubmenuHtml(proj, pr) {
+      const quietCi = isQuietCi(proj.id, pr.number);
+      const quietCr = isQuietCr(proj.id, pr.number);
+      const canQuietCi = quietCi || prHasQuietableCi(pr);
+      const canQuietCr = quietCr || prHasQuietableCr(pr);
+      const pid = escapeHtml(proj.id);
+      const items = [];
+      if (canQuietCi) {
+        if (quietCi) {
+          items.push(`<button type="button" class="cr-menu-item" onclick="markPrQuiet(event, '${pid}', ${pr.number}, 'ci', false)"><span class="title">Unquiet CI</span><span class="desc">Show CI failing again</span></button>`);
+        } else {
+          items.push(`<button type="button" class="cr-menu-item" onclick="markPrQuiet(event, '${pid}', ${pr.number}, 'ci', true)"><span class="title">Quiet CI</span><span class="desc">Hide CI failing until it passes</span></button>`);
+        }
+      }
+      if (canQuietCr) {
+        if (quietCr) {
+          items.push(`<button type="button" class="cr-menu-item" onclick="markPrQuiet(event, '${pid}', ${pr.number}, 'cr', false)"><span class="title">Unquiet CR</span><span class="desc">Show CodeRabbit signals again</span></button>`);
+        } else {
+          items.push(`<button type="button" class="cr-menu-item" onclick="markPrQuiet(event, '${pid}', ${pr.number}, 'cr', true)"><span class="title">Quiet CR</span><span class="desc">Hide CR until actionable changes</span></button>`);
+        }
+      }
+      if (quietCi && quietCr) {
+        items.push('<div class="cr-menu-sep"></div>');
+        items.push(`<button type="button" class="cr-menu-item" onclick="markPrQuietBoth(event, '${pid}', ${pr.number}, false)"><span class="title">Unquiet both</span><span class="desc">Restore CI and CR</span></button>`);
+      } else if (!quietCi && !quietCr && canQuietCi && canQuietCr) {
+        items.push('<div class="cr-menu-sep"></div>');
+        items.push(`<button type="button" class="cr-menu-item" onclick="markPrQuietBoth(event, '${pid}', ${pr.number}, true)"><span class="title">Quiet both</span><span class="desc">Mute CI and CR until they change</span></button>`);
+      }
+      return items.join('');
+    }
+
+    function renderProjectQuietMenu(proj) {
+      const wrap = document.getElementById('main-quiet-wrap');
+      const btn = document.getElementById('main-quiet-btn');
+      const flyout = document.getElementById('main-quiet-flyout');
+      const badge = document.getElementById('main-quiet-badge');
+      if (!wrap || !btn || !flyout || !badge) return;
+
+      const entries = projectQuietPrs(proj);
+      if (!entries.length) {
+        wrap.classList.remove('visible');
+        flyout.classList.remove('open');
+        if (openProjectQuietId === proj.id) openProjectQuietId = null;
+        return;
+      }
+
+      wrap.classList.add('visible');
+      wrap.onclick = (event) => event.stopPropagation();
+      let quietedSignals = 0;
+      for (const pr of entries) {
+        if (isQuietCi(proj.id, pr.number)) quietedSignals += 1;
+        if (isQuietCr(proj.id, pr.number)) quietedSignals += 1;
+      }
+      if (quietedSignals > 0) {
+        badge.hidden = false;
+        badge.textContent = String(quietedSignals);
+        btn.classList.add('active');
+      } else {
+        badge.hidden = true;
+        badge.textContent = '';
+        btn.classList.remove('active');
+      }
+
+      setHtmlIfChanged(flyout, entries.map((pr) => {
+        const quietCi = isQuietCi(proj.id, pr.number);
+        const quietCr = isQuietCr(proj.id, pr.number);
+        const flags = [
+          quietCi ? 'CI quiet' : (prHasQuietableCi(pr) ? 'CI failing' : ''),
+          quietCr ? 'CR quiet' : (prHasQuietableCr(pr) ? 'CR open' : '')
+        ].filter(Boolean).join(' · ');
+        const author = pr.author?.login ? escapeHtml(pr.author.login) : '';
+        const title = escapeHtml(pr.title || `PR #${pr.number}`);
+        return `<div class="quiet-pr-row">
+          <button type="button" class="quiet-pr-btn">
+            <span class="pr-num">PR #${pr.number}${author ? ` · ${author}` : ''}</span>
+            <span class="pr-meta">${title}</span>
+            ${flags ? `<span class="pr-flags">${escapeHtml(flags)}</span>` : ''}
+          </button>
+          <div class="quiet-submenu">${quietSubmenuHtml(proj, pr)}</div>
+        </div>`;
+      }).join(''));
+
+      const open = openProjectQuietId === proj.id;
+      flyout.classList.toggle('open', open);
+      btn.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openCrMenuId = null;
+        openProjectQuietId = openProjectQuietId === proj.id ? null : proj.id;
+        flyout.classList.toggle('open', openProjectQuietId === proj.id);
+      };
     }
 
     function prCrChipHtml(proj, pr) {
@@ -3590,8 +4826,21 @@
       const actionable = Number(cr.actionable) || 0;
       const fill = crFillPct(cr);
       const fillStyle = fill != null ? ` style="--fill:${Math.round(fill)}%"` : '';
+      const freshLabel = cr.freshAfterReview
+        ? (() => {
+            const parts = [];
+            const n = Number(cr.newCount) || 0;
+            const x = Number(cr.leftoverCount) || 0;
+            if (n > 0) parts.push(`${n} new`);
+            if (x > 0) parts.push(`${x} leftover`);
+            return parts.join(' - ');
+          })()
+        : '';
       let badge = '';
-      if ((state === 'actionable' || state === 'delivery' || state === 'leftover') && actionable > 0) {
+      if (freshLabel) {
+        // Counts live in the label ("2 new - 1 leftover").
+        badge = '';
+      } else if ((state === 'actionable' || state === 'delivery' || state === 'leftover') && actionable > 0) {
         badge = `<span class="badge">${actionable}</span>`;
       } else if (state === 'reviewing' || state === 'autofixing') {
         badge = `<span class="badge">…</span>`;
@@ -3601,7 +4850,9 @@
 
       let label = 'CR';
       if (state === 'leftover') label = 'CR leftover';
+      else if (freshLabel) label = freshLabel;
       else if (state === 'ready') label = 'CR ready';
+      else if (state === 'limited' && cr.queuedReview) label = 'CR queued';
       else if (state === 'limited') label = 'CR limited';
       else if (state === 'autofixing') label = 'CR autofix';
       else if (state === 'delivery') label = 'CR delivery';
@@ -3612,10 +4863,15 @@
         || pendingCrAction.has(menuKey)
         || pendingCrAction.has(proj.id);
       const menuOpen = openCrMenuId === menuKey ? ' open' : '';
+      const chipTitle = state === 'limited' && cr.queuedReview?.fireAt
+        ? `Queued review ~${formatClock(cr.queuedReview.fireAt)}`
+        : (cr.freshAfterReview && state === 'actionable')
+          ? (cr.detail || 'New findings after re-review — Autofix next')
+          : (cr.tip || 'CodeRabbit actions');
 
       const chip = `
         <button type="button" class="gh ${escapeHtml(state)}"${fillStyle}
-          title="CodeRabbit actions"
+          title="${escapeHtml(chipTitle)}"
           ${busy ? 'disabled' : ''}
           onclick="toggleCrMenu(event, '${escapeHtml(proj.id)}', ${pr.number})">
           <span class="label"><span class="rabbit" aria-hidden="true">🐰</span><span>${escapeHtml(label)}</span></span>${badge}<span class="chev">▾</span>
@@ -3644,8 +4900,8 @@
           if (isStarting) {
             dotClass = 'starting';
           bannerHtml = s.lastLog
-            ? `<div class="starting-banner" title="${escapeHtml(s.lastLog)}"><span class="spinner"></span> ${escapeHtml(s.lastLog)}</div>`
-            : `<div class="starting-banner"><span class="spinner"></span> Waiting for :${s.port}...</div>`;
+            ? `<div class="starting-banner" title="${escapeHtml(s.lastLog)}"><span class="spinner"></span><span class="starting-banner-text">${escapeHtml(s.lastLog)}</span></div>`
+            : `<div class="starting-banner"><span class="spinner"></span><span class="starting-banner-text">Waiting for :${s.port}...</span></div>`;
         } else if (isRunning) dotClass = 'active';
         else if (isExternal) {
             const isUnresponsive = health && !health.responsive;
@@ -3725,9 +4981,10 @@
       if (!links.length && proj.liveUrl) {
         links.push({ label: 'Live', url: proj.liveUrl });
       }
-      if (!links.length) return '<div class="panel-empty">No links — add in Settings.</div>';
+      const previews = previewPrs(proj);
+      if (!links.length && !previews.length) return '<div class="panel-empty">No links — add in Settings.</div>';
 
-      return `<div class="links-grid">${links.map((link, i) => {
+      const linksHtml = links.length ? `<div class="links-grid">${links.map((link, i) => {
         const space = resolveLinkSpace(proj, link) || 'Default';
         return `
           <button type="button" class="link-card"
@@ -3740,12 +4997,111 @@
               <span class="pill space">${escapeHtml(space)}</span>
             </div>
           </button>`;
-      }).join('')}</div>`;
+      }).join('')}</div>` : '';
+
+      return linksHtml + previewLinksHtml(proj, previews);
+    }
+
+    function previewPrs(proj) {
+      return projectPrs(proj).filter((pr) => pr.preview?.url);
+    }
+
+    const ICON_PREVIEW = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2c1.98 0 3.73 1 5.17 2.3A13 13 0 0 1 15.84 7.6a.9.9 0 0 1 0 .8 13 13 0 0 1-2.67 3.3C11.73 13 9.98 14 8 14s-3.73-1-5.17-2.3A13 13 0 0 1 .16 8.4a.9.9 0 0 1 0-.8 13 13 0 0 1 2.67-3.3C4.27 3 6.02 2 8 2Zm0 1.5c-1.5 0-2.9.77-4.15 1.9A11.4 11.4 0 0 0 1.7 8a11.4 11.4 0 0 0 2.15 2.6C5.1 11.73 6.5 12.5 8 12.5s2.9-.77 4.15-1.9A11.4 11.4 0 0 0 14.3 8a11.4 11.4 0 0 0-2.15-2.6C10.9 4.27 9.5 3.5 8 3.5Zm0 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/></svg>';
+
+    function previewLinksHtml(proj, previews) {
+      if (!previews.length) return '';
+      const pid = escapeHtml(proj.id);
+      const cards = previews.map((pr) => {
+        const pv = pr.preview;
+        let foot = '';
+        if (pv.state === 'live') {
+          foot = '<span class="preview-state live"><span class="dot"></span>live</span>';
+          if (pv.builtAt) foot += `<span class="pill age">built ${escapeHtml(timeAgoShort(pv.builtAt))}</span>`;
+        } else if (pv.state === 'building') {
+          foot = '<span class="preview-state building"><span class="dot"></span>building</span>';
+        } else if (pv.state === 'stale') {
+          foot = '<span class="pill age">older commit</span>';
+        } else {
+          foot = '<span class="preview-state"><span class="dot"></span>checking</span>';
+        }
+        const space = previewLinkSpace(proj) || 'System browser';
+        const title = `${pv.provider || 'Preview'} · ${pv.url}\nOpens in: ${space}`;
+        return `
+          <button type="button" class="link-card preview" data-pr="${pr.number}"
+            title="${escapeHtml(title)}"
+            onclick="openPreviewLink(event, '${pid}', ${pr.number})">
+            <div class="top">
+              <span class="icon brand-pad">${ICON_PREVIEW}</span>
+              <div class="label">Preview</div>
+              <span class="pr-num">#${pr.number}</span>
+            </div>
+            <div class="sub">${escapeHtml(pr.title || '')}</div>
+            <div class="foot">${foot}</div>
+          </button>`;
+      }).join('');
+      return `<div class="links-sub">PR previews</div><div class="links-grid">${cards}</div>`;
+    }
+
+    function timeAgoShort(iso) {
+      const ms = Date.now() - new Date(iso).getTime();
+      if (!Number.isFinite(ms)) return '';
+      const m = Math.max(0, Math.round(ms / 60000));
+      if (m < 1) return 'just now';
+      if (m < 60) return `${m}m ago`;
+      const h = Math.round(m / 60);
+      if (h < 24) return `${h}h ago`;
+      return `${Math.round(h / 24)}d ago`;
     }
 
     function sectionPanel(title, count, inner) {
-      return `<div class="panel"><div class="panel-h"><h3>${title}</h3><span class="count">${count}</span></div>${inner}</div>`;
+      return `<div class="panel"><div class="panel-h"><h3>${title}</h3><span class="count">${count}</span></div><div class="panel-scroll" data-scroll-key="${escapeHtml(title)}">${inner}</div></div>`;
     }
+
+    const PROJECT_TAB_KEY = 'dev-dashboard-project-tabs';
+    const PROJECT_TAB_IDS = ['processes', 'chats', 'links'];
+    let projectTabs = Object.create(null);
+    try {
+      const saved = JSON.parse(localStorage.getItem(PROJECT_TAB_KEY) || '{}');
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+        for (const [id, tab] of Object.entries(saved)) {
+          if (PROJECT_TAB_IDS.includes(tab)) projectTabs[id] = tab;
+        }
+      }
+    } catch { /* preferences remain available in memory */ }
+
+    function projectTab(proj, counts) {
+      if (PROJECT_TAB_IDS.includes(projectTabs[proj.id])) return projectTabs[proj.id];
+      // Ties favor processes, then chats, then links. Wait for discovery before
+      // fixing the automatic default so the initial loading state cannot bias it.
+      const tab = PROJECT_TAB_IDS.reduce((best, key) => counts[key] > counts[best] ? key : best, 'processes');
+      if (proj.chatDiscovery?.state !== 'loading') {
+        projectTabs[proj.id] = tab;
+        try { localStorage.setItem(PROJECT_TAB_KEY, JSON.stringify(projectTabs)); } catch { /* ignore */ }
+      }
+      return tab;
+    }
+
+    function chooseProjectTab(tab) {
+      if (!activeProjectId || !PROJECT_TAB_IDS.includes(tab)) return;
+      projectTabs[activeProjectId] = tab;
+      try { localStorage.setItem(PROJECT_TAB_KEY, JSON.stringify(projectTabs)); } catch { /* ignore */ }
+      const proj = lastProjects.find(p => p.id === activeProjectId);
+      if (proj) renderMainDetail(proj);
+      document.querySelector(`.project-tab[data-project-tab="${tab}"]`)?.focus({ preventScroll: true });
+    }
+
+    document.addEventListener('click', event => {
+      const tab = event.target.closest('.project-tab');
+      if (tab) chooseProjectTab(tab.dataset.projectTab);
+    });
+    document.addEventListener('keydown', event => {
+      const tab = event.target.closest('.project-tab');
+      if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const index = PROJECT_TAB_IDS.indexOf(tab.dataset.projectTab);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+      chooseProjectTab(PROJECT_TAB_IDS[next]);
+    });
 
     function renderMainDetail(proj) {
       const empty = document.getElementById('main-empty');
@@ -3754,34 +5110,92 @@
       if (!proj) {
         empty.hidden = false;
         filled.hidden = true;
-        if (body) body.innerHTML = '';
+        if (body) {
+          body.innerHTML = '';
+          body._dashHtml = undefined;
+        }
+        lastMainProjectId = null;
         return;
       }
       empty.hidden = true;
       filled.hidden = false;
 
-      // Clear first so a mid-render error can't leave another project's panels up.
-      if (body) body.innerHTML = '';
+      // Only blank panels when switching projects — poll re-renders must not flash empty.
+      if (lastMainProjectId !== proj.id) {
+        if (body) {
+          body.innerHTML = '';
+          body._dashHtml = undefined;
+        }
+        lastMainProjectId = proj.id;
+      }
 
-      document.getElementById('main-avatar').innerHTML = projectAvatarHtml(proj);
-      document.getElementById('main-name').textContent = proj.name || '—';
+      setHtmlIfChanged(document.getElementById('main-avatar'), projectAvatarHtml(proj));
+      setTextIfChanged(document.getElementById('main-name'), proj.name || '—');
       const dirShort = String(proj.directory || '').replace(/^\/Users\/[^/]+/, '~');
-      document.getElementById('main-path').textContent = dirShort;
-      document.getElementById('main-path').title = proj.directory || '';
-      document.getElementById('main-git').innerHTML = gitLineHtml(proj.git);
-      document.getElementById('main-agent').innerHTML = agentStripHtml(proj);
-      document.getElementById('main-commits').innerHTML = commitsHtml(proj);
-      document.getElementById('main-settings').onclick = () => openSettingsModal(proj.id);
+      const pathEl = document.getElementById('main-path');
+      setTextIfChanged(pathEl, dirShort);
+      if (pathEl) pathEl.title = proj.directory || '';
+      setHtmlIfChanged(document.getElementById('main-git'), gitLineHtml(proj.git));
+      setHtmlIfChanged(document.getElementById('main-agent'), agentStripHtml(proj));
+      setHtmlIfChanged(document.getElementById('main-commits'), commitsHtml(proj));
+      const settingsBtn = document.getElementById('main-settings');
+      if (settingsBtn && !settingsBtn.querySelector('svg')) {
+        settingsBtn.innerHTML = ICON_SETTINGS;
+      }
+      if (settingsBtn) settingsBtn.onclick = () => openSettingsModal(proj.id);
+      renderProjectQuietMenu(proj);
 
       const prs = projectPrs(proj);
       const up = (proj.services || []).filter((s) => s.isPortOpen).length;
       const total = (proj.services || []).length;
       const links = Array.isArray(proj.links) ? proj.links.length : 0;
+      const linkCount = (links || (proj.repo ? 1 : 0)) + previewPrs(proj).length;
       const prPanel = sectionPanel('Open PRs', String(prs.length), panelPrsHtml(proj));
-      const procPanel = sectionPanel('Processes', `${up}/${total} up`, servicesPanelHtml(proj));
-      const linkPanel = sectionPanel('Links', String(links || (proj.repo ? 1 : 0)), linksPanelHtml(proj));
-      body.innerHTML =
-        `<div class="org-split">${prPanel}<div class="org-stack">${procPanel}${linkPanel}</div></div>`;
+      const chatCount = (proj.recentChats || []).length;
+      const counts = { processes: total, chats: chatCount, links: linkCount };
+      const activeTab = projectTab(proj, counts);
+      const labels = { processes: 'Processes', chats: 'Chats', links: 'Links' };
+      const tabButtons = PROJECT_TAB_IDS.map(tab => `<button type="button" class="project-tab" role="tab" id="project-tab-${tab}" data-project-tab="${tab}" aria-selected="${tab === activeTab}" aria-controls="project-tab-content" tabindex="${tab === activeTab ? 0 : -1}">${labels[tab]}<span class="project-tab-count">${counts[tab]}</span></button>`).join('');
+      const content = activeTab === 'processes' ? servicesPanelHtml(proj) : activeTab === 'chats' ? recentChatsHtml(proj) : linksPanelHtml(proj);
+      const rightPanel = `<div class="panel project-tabs-panel"><div class="project-tabs" role="tablist" aria-label="Project resources">${tabButtons}</div><div class="panel-scroll" id="project-tab-content" role="tabpanel" aria-labelledby="project-tab-${activeTab}" tabindex="0" data-scroll-key="${escapeHtml(proj.id)}-${activeTab}">${content}</div></div>`;
+      const scrollTops = new Map();
+      body.querySelectorAll('.panel-scroll[data-scroll-key]').forEach((el) => {
+        if (el.scrollTop) scrollTops.set(el.dataset.scrollKey, el.scrollTop);
+      });
+      const replaced = setHtmlIfChanged(
+        body,
+        `<div class="org-split">${prPanel}${rightPanel}</div>`
+      );
+      if (replaced && scrollTops.size) {
+        body.querySelectorAll('.panel-scroll[data-scroll-key]').forEach((el) => {
+          const top = scrollTops.get(el.dataset.scrollKey);
+          if (top) el.scrollTop = top;
+        });
+      }
+      if (previewHover) {
+        const keep = previewHover;
+        previewHover = null;
+        setPreviewHover(keep);
+      }
+    }
+
+    function recentChatsHtml(proj) {
+      const rows = Array.isArray(proj.recentChats) ? proj.recentChats : [];
+      if (!rows.length) return `<div class="recent-chat-meta">${proj.chatDiscovery?.state === 'unavailable' ? 'Codex chats unavailable. Activity updates will still appear here.' : proj.chatDiscovery?.state === 'loading' ? 'Loading recent chats…' : 'No recent chats for this project.'}</div>`;
+      return rows.map(chat => {
+        const providers = { codex: 'Codex', cursor: 'Cursor', antigravity: 'Antigravity' };
+        const provider = providers[chat.provider] || chat.provider;
+        const expected = { codex: 'codex:', cursor: 'cursor:', antigravity: 'antigravity:' }[chat.provider];
+        let href = null;
+        try { const url = new URL(chat.openUrl); if (expected && url.protocol === expected) href = url.href; } catch {}
+        const tag = href ? 'a' : 'div';
+        const states = { working: ['Working', 'Recent local turn activity'], waiting: ['Waiting for you', chat.status?.reason === 'approval' ? 'Permission or approval requested' : chat.status?.reason === 'input' ? 'Input requested' : 'Input requested'], idle: ['Idle', 'No pending input detected; last turn finished'], paused: ['Paused', 'The last turn was interrupted'], error: ['Error', 'The editor reported an error'], unknown: ['Status unavailable', 'No fresh activity evidence is available'] };
+        const state = Object.hasOwn(states, chat.status?.state) ? chat.status.state : 'unknown';
+        const [stateLabel, stateHelp] = states[state];
+        return `<${tag} class="recent-chat"${href ? ` href="${escapeHtml(href)}" title="Open in ${escapeHtml(provider)}: ${escapeHtml(chat.title)}"` : ''}>
+          <div class="recent-chat-copy"><div class="recent-chat-title">${escapeHtml(chat.title)}</div><div class="recent-chat-meta"><span class="chat-state chat-state-${state}" title="${escapeHtml(stateHelp)}">${stateLabel}</span>${escapeHtml(timeAgoShort(chat.updatedAt))}${href ? '' : ' · Chat opening not configured'}</div></div>
+          <span class="recent-chat-provider">${escapeHtml(provider)}</span></${tag}>`;
+      }).join('');
     }
 
     function gitLineHtml(git) {
@@ -3841,95 +5255,8 @@
     // Soft conic comet for CI PR cards. Trail length is a fixed fraction of
     // the perimeter (26%) so it does not pinch mid-top/bottom; lap is 3.5s.
     const CI_COMET_LAP_MS = 3500;
-    const CI_COMET_TRAIL = 0.26;
-    const CI_COMET_PALETTES = {
-      failing: {
-        head: '#ffc8c3',
-        mid: '#f85149',
-        soft: 'rgba(248,81,73,0.55)',
-        faint: 'rgba(248,81,73,0.22)',
-        base: '#30363d',
-        reduced: 'rgba(248,81,73,0.75)'
-      },
-      running: {
-        head: '#ffe8a3',
-        mid: '#e3b341',
-        soft: 'rgba(227,179,65,0.55)',
-        faint: 'rgba(210,153,34,0.28)',
-        base: '#30363d',
-        reduced: 'rgba(227,179,65,0.75)'
-      }
-    };
-    let ciCometRaf = null;
-    let ciCometT0 = null;
-
-    function pointOnPerimeter(t, w, h) {
-      const hw = w / 2;
-      const hh = h / 2;
-      const perim = 2 * (w + h);
-      let s = ((t % 1) + 1) % 1 * perim;
-      if (s < hw) return { x: s, y: -hh };
-      s -= hw;
-      if (s < h) return { x: hw, y: -hh + s };
-      s -= h;
-      if (s < w) return { x: hw - s, y: hh };
-      s -= w;
-      if (s < h) return { x: -hw, y: hh - s };
-      s -= h;
-      return { x: -hw + s, y: -hh };
-    }
-
-    function angleFromTop(x, y) {
-      let deg = Math.atan2(x, -y) * (180 / Math.PI);
-      if (deg < 0) deg += 360;
-      return deg;
-    }
-
-    function ccwFrom(headDeg, pointDeg) {
-      return (headDeg - pointDeg + 360) % 360;
-    }
-
-    function paintCiComet(card, t) {
-      const kind = card.classList.contains('ci-running') ? 'running' : 'failing';
-      const pal = CI_COMET_PALETTES[kind];
-      const fill = card.classList.contains('side-item') && card.classList.contains('active')
-        ? '#1c2b3f'
-        : '#0d1117';
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        card.style.background =
-          `linear-gradient(${fill}, ${fill}) padding-box,` +
-          `linear-gradient(${pal.reduced}, ${pal.reduced}) border-box`;
-        return;
-      }
-      const w = card.offsetWidth;
-      const h = card.offsetHeight;
-      if (w < 2 || h < 2) return;
-
-      const head = pointOnPerimeter(t, w, h);
-      const headDeg = angleFromTop(head.x, head.y);
-      const trailFrac = CI_COMET_TRAIL;
-      const samples = [
-        { d: 0, color: pal.head },
-        { d: trailFrac * 0.08, color: pal.mid },
-        { d: trailFrac * 0.28, color: pal.soft },
-        { d: trailFrac * 0.58, color: pal.faint },
-        { d: trailFrac, color: pal.base }
-      ].map((s) => {
-        const p = pointOnPerimeter(t - s.d, w, h);
-        return { ang: ccwFrom(headDeg, angleFromTop(p.x, p.y)), color: s.color };
-      });
-
-      const stops = [`${pal.base} 0deg`];
-      const farthest = samples[samples.length - 1].ang;
-      stops.push(`${pal.base} ${Math.max(0, 360 - farthest - 0.01)}deg`);
-      for (let i = samples.length - 1; i >= 0; i--) {
-        stops.push(`${samples[i].color} ${360 - samples[i].ang}deg`);
-      }
-
-      card.style.background =
-        `linear-gradient(${fill}, ${fill}) padding-box,` +
-        `conic-gradient(from ${headDeg}deg, ${stops.join(', ')}) border-box`;
-    }
+    let ciCometRaf = null, ciCometT0 = null;
+    function paintCiComet(card,t) { DashboardPrUI.paintCiComet(card,t); }
 
     function ciCometTick(now) {
       const cards = document.querySelectorAll(
@@ -3958,41 +5285,7 @@
     let chipCometRaf = null;
     let chipCometT0 = null;
 
-    function paintReviewComet(el, t) {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        el.style.border = '1.5px solid transparent';
-        el.style.background =
-          'linear-gradient(#2a2416, #2a2416) padding-box,' +
-          'linear-gradient(#5a4a22, #5a4a22) border-box';
-        return;
-      }
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      if (w < 2 || h < 2) return;
-      const trail = 0.14;
-      const head = pointOnPerimeter(t, w, h);
-      const headDeg = angleFromTop(head.x, head.y);
-      const samples = [
-        { d: 0, color: '#ffe8a3' },
-        { d: trail * 0.08, color: '#e3b341' },
-        { d: trail * 0.28, color: 'rgba(227,179,65,0.55)' },
-        { d: trail * 0.58, color: 'rgba(210,153,34,0.28)' },
-        { d: trail, color: 'rgba(210,153,34,0.22)' }
-      ].map((s) => {
-        const p = pointOnPerimeter(t - s.d, w, h);
-        return { ang: ccwFrom(headDeg, angleFromTop(p.x, p.y)), color: s.color };
-      });
-      const stops = ['rgba(210,153,34,0.22) 0deg'];
-      const far = samples[samples.length - 1].ang;
-      stops.push(`rgba(210,153,34,0.22) ${Math.max(0, 360 - far - 0.01)}deg`);
-      for (let i = samples.length - 1; i >= 0; i--) {
-        stops.push(`${samples[i].color} ${360 - samples[i].ang}deg`);
-      }
-      el.style.border = '1.5px solid transparent';
-      el.style.background =
-        `linear-gradient(#2a2416, #2a2416) padding-box,` +
-        `conic-gradient(from ${headDeg}deg, ${stops.join(', ')}) border-box`;
-    }
+    function paintReviewComet(el,t) { DashboardPrUI.paintReviewComet(el,t); }
 
     function chipCometTick(now) {
       const chips = document.querySelectorAll('.gh.reviewing');
@@ -4039,12 +5332,12 @@
     async function stopService(serviceId) {
       try {
         pendingStarts.delete(serviceId);
-        await fetch('/api/stop', {
+        const r = await fetch('/api/stop', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ serviceId })
-        });
-        showToast('Service stopped');
+        }).then((x) => x.json()).catch(() => ({}));
+        showToast(r.refused ? r.message : 'Service stopped');
         fetchStatus();
       } catch (err) {
         alert('Failed to stop service: ' + err.message);
@@ -4056,12 +5349,17 @@
         pendingStarts.add(serviceId);
         if (lastProjects.length) renderProjects(lastProjects);
         showToast('Restarting / Relaunching...');
-        await fetch('/api/restart', {
+        const r = await fetch('/api/restart', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ serviceId })
-        });
-        showToast('Service relaunching, waiting for port...');
+        }).then((x) => x.json()).catch(() => ({}));
+        if (r.refused) {
+          pendingStarts.delete(serviceId);
+          showToast(r.message);
+        } else {
+          showToast('Service relaunching, waiting for port...');
+        }
         fetchStatus();
       } catch (err) {
         pendingStarts.delete(serviceId);
@@ -4097,12 +5395,12 @@
 
     async function killPort(port) {
       try {
-        await fetch('/api/kill-port', {
+        const r = await fetch('/api/kill-port', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ port })
-        });
-        showToast(`Port ${port} freed`);
+        }).then((x) => x.json()).catch(() => ({}));
+        showToast(r.refused ? r.message : `Port ${port} freed`);
         fetchStatus();
       } catch (err) {
         alert('Failed to kill port: ' + err.message);
@@ -4518,6 +5816,7 @@
     }
 
     function ciTipCopy(ci) {
+      if (ci === 'automerge-blocked') return { text: 'automerge blocked', cls: '' };
       if (ci === 'failing') return { text: 'failing', cls: 'failing' };
       if (ci === 'running') return { text: 'running', cls: 'running' };
       if (ci === 'passing') return { text: 'passing', cls: 'passing' };
@@ -4527,6 +5826,14 @@
     function crStatusLabel(cr) {
       const state = cr?.state || 'empty';
       if (state === 'actionable') {
+        if (cr.freshAfterReview) {
+          const parts = [];
+          const n = Number(cr.newCount) || 0;
+          const x = Number(cr.leftoverCount) || 0;
+          if (n > 0) parts.push(`${n} new`);
+          if (x > 0) parts.push(`${x} leftover`);
+          if (parts.length) return parts.join(' - ');
+        }
         const n = Number(cr.actionable) || 0;
         return n > 0
           ? `${n} actionable`
@@ -4547,7 +5854,8 @@
     }
 
     function githubChipHtml(proj, link, linkIndex) {
-      const cr = proj.cr || { state: 'empty', actionable: 0 };
+      const aggIsQuiet = proj.cr?.prNumber && isAutoQuietPr(proj.id, proj.cr.prNumber);
+      const cr = (aggIsQuiet ? effectiveCr(proj) : proj.cr) || { state: 'empty', actionable: 0 };
       const state = cr.state || 'empty';
       const actionable = Number(cr.actionable) || 0;
       const fill = crFillPct(cr);
@@ -4555,7 +5863,7 @@
       const badge = (state === 'actionable' || state === 'delivery' || state === 'leftover') && actionable > 0
         ? `<span class="badge">${actionable}</span>`
         : '';
-      const ciTip = ciTipCopy(proj.ci);
+      const ciTip = ciTipCopy(projectPrs(proj).some((p) => p.draft || p.soak) ? effectiveCi(proj) : proj.ci);
       const crLabel = state !== 'empty' ? crStatusLabel(cr) : null;
       const wrapClass = (state === 'empty' && !ciTip) ? 'gh-wrap empty' : 'gh-wrap';
       const pid = escapeHtml(proj.id);
@@ -4606,14 +5914,17 @@
       const openCls = menuOpen != null ? menuOpen : (openCrMenuId === menuKey ? ' open' : '');
 
       const items = [];
-      const pushItem = ({ action, title, desc, primary, danger, disabled }) => {
+      const pushItem = ({ action, title, desc, primary, danger, disabled, nested }) => {
         const cls = [
           'cr-menu-item',
           primary ? 'primary' : '',
-          danger ? 'danger' : ''
+          danger ? 'danger' : '',
+          nested ? 'nested' : ''
         ].filter(Boolean).join(' ');
         if (disabled) {
           items.push(`<button type="button" class="${cls}" disabled><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'fix-codex') {
+          items.push(`<button type="button" class="${cls}" onclick="prepareCodexFix(event, '${pid}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
         } else if (action === 'open-task') {
           items.push(`<button type="button" class="${cls}" onclick="openCrTask(event, '${pid}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
         } else if (action === 'open-pr') {
@@ -4623,125 +5934,32 @@
           items.push(`<button type="button" class="${cls}" onclick="markPrWaiting(event, '${pid}', ${prNumber}, true)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
         } else if (action === 'clear-waiting') {
           items.push(`<button type="button" class="${cls}" onclick="markPrWaiting(event, '${pid}', ${prNumber}, false)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'quiet-ci') {
+          items.push(`<button type="button" class="${cls}" onclick="markPrQuiet(event, '${pid}', ${prNumber}, 'ci', true)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'unquiet-ci') {
+          items.push(`<button type="button" class="${cls}" onclick="markPrQuiet(event, '${pid}', ${prNumber}, 'ci', false)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'quiet-cr') {
+          items.push(`<button type="button" class="${cls}" onclick="markPrQuiet(event, '${pid}', ${prNumber}, 'cr', true)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'unquiet-cr') {
+          items.push(`<button type="button" class="${cls}" onclick="markPrQuiet(event, '${pid}', ${prNumber}, 'cr', false)"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'queue-review') {
+          items.push(`<button type="button" class="${cls}" onclick="queueCrReview(event, '${pid}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'resolve-leftovers') {
+          items.push(`<button type="button" class="${cls}" onclick="resolveCrLeftovers(event, '${pid}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
+        } else if (action === 'cancel-queue-review') {
+          items.push(`<button type="button" class="${cls}" onclick="cancelQueuedCrReview(event, '${pid}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
         } else {
           items.push(`<button type="button" class="${cls}" onclick="triggerCrAction(event, '${pid}', '${action}', ${prNumber})"><span class="title">${escapeHtml(title)}</span><span class="desc">${escapeHtml(desc)}</span></button>`);
         }
       };
 
-      const mine = isMyPr(proj, pr);
-
-      if (state === 'pending' || state === 'ready') {
-        items.push('<div class="cr-menu-hint">Suggested</div>');
-        if (mine) {
-          pushItem({ action: 'review', title: 'Review', desc: '@coderabbitai review — start a review on HEAD', primary: true });
-          items.push('<div class="cr-menu-sep"></div>');
-          pushItem({ action: 'autofix', title: 'Autofix', desc: 'No actionable threads yet', disabled: true });
-        } else {
-          pushItem({ action: 'open-pr', title: 'Open on GitHub', desc: 'Collaborator PR — review there', primary: true });
-          pushItem({ action: 'review', title: 'CR Review', desc: '@coderabbitai review on HEAD' });
-        }
-      } else if (state === 'actionable') {
-        items.push('<div class="cr-menu-hint">Suggested</div>');
-        if (mine) {
-          pushItem({ action: 'autofix', title: 'Autofix', desc: '@coderabbitai autofix — let CR patch threads', primary: true });
-          pushItem({ action: 'review', title: 'Review', desc: 'Re-review HEAD (no autofix)' });
-        } else if (isWaitingOnAuthor(proj.id, prNumber)) {
-          pushItem({
-            action: 'clear-waiting',
-            title: 'Clear waiting',
-            desc: 'Dashboard only — remove the waiting-on-author mark',
-            primary: true
-          });
-          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review HEAD (no autofix)' });
-          items.push('<div class="cr-menu-sep"></div>');
-          pushItem({ action: 'autofix', title: 'Autofix', desc: 'Only if you want CR patching their branch' });
-        } else {
-          pushItem({
-            action: 'mark-waiting',
-            title: 'Mark waiting',
-            desc: 'Dashboard only — waiting on author (nothing posted to GitHub)',
-            primary: true
-          });
-          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review HEAD (no autofix)' });
-          items.push('<div class="cr-menu-sep"></div>');
-          pushItem({ action: 'autofix', title: 'Autofix', desc: 'Only if you want CR patching their branch' });
-        }
-      } else if (state === 'leftover') {
-        items.push('<div class="cr-menu-hint">Suggested</div>');
-        if (mine) {
-          pushItem({ action: 'review', title: 'Review', desc: 'Re-check HEAD — Autofix finished; thread may be stale', primary: true });
-          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Retry autofix if the leftover is still real' });
-        } else if (isWaitingOnAuthor(proj.id, prNumber)) {
-          pushItem({
-            action: 'clear-waiting',
-            title: 'Clear waiting',
-            desc: 'Dashboard only — remove the waiting-on-author mark',
-            primary: true
-          });
-          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-check HEAD' });
-          items.push('<div class="cr-menu-sep"></div>');
-          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
-        } else {
-          pushItem({
-            action: 'mark-waiting',
-            title: 'Mark waiting',
-            desc: 'Dashboard only — waiting on author (nothing posted to GitHub)',
-            primary: true
-          });
-          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-check HEAD' });
-          items.push('<div class="cr-menu-sep"></div>');
-          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
-        }
-      } else if (state === 'delivery') {
-        items.push('<div class="cr-menu-hint">Suggested</div>');
-        if (cr.taskUrl) {
-          pushItem({ action: 'open-task', title: 'Open CR task', desc: 'Push failed — finish or retry in CodeRabbit', primary: true, danger: true });
-          items.push('<div class="cr-menu-sep"></div>');
-        }
-        if (mine) {
-          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Retry only if the delivery issue is fixed', primary: !cr.taskUrl });
-          pushItem({ action: 'review', title: 'Review', desc: 'Re-review current HEAD' });
-        } else if (isWaitingOnAuthor(proj.id, prNumber)) {
-          pushItem({
-            action: 'clear-waiting',
-            title: 'Clear waiting',
-            desc: 'Dashboard only — remove the waiting-on-author mark',
-            primary: !cr.taskUrl
-          });
-          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review current HEAD' });
-          items.push('<div class="cr-menu-sep"></div>');
-          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
-        } else {
-          pushItem({
-            action: 'mark-waiting',
-            title: 'Mark waiting',
-            desc: 'Dashboard only — waiting on author (nothing posted to GitHub)',
-            primary: !cr.taskUrl
-          });
-          pushItem({ action: 'review', title: 'CR Review', desc: 'Re-review current HEAD' });
-          items.push('<div class="cr-menu-sep"></div>');
-          pushItem({ action: 'autofix', title: 'Autofix again', desc: 'Only if you want CR patching their branch' });
-        }
-      } else if (state === 'clear') {
-        items.push('<div class="cr-menu-hint">Optional</div>');
-        pushItem({ action: 'review', title: 'Review again', desc: '@coderabbitai review on latest HEAD' });
-        items.push('<div class="cr-menu-sep"></div>');
-        pushItem({ action: 'autofix', title: 'Autofix', desc: 'Nothing actionable', disabled: true });
-      } else if (!busy) {
-        // limited / other — still allow review nudge
-        items.push('<div class="cr-menu-hint">Optional</div>');
-        pushItem({ action: 'review', title: 'Review', desc: '@coderabbitai review on HEAD' });
+      const entries = DashboardPrUI.crMenuEntries({cr,mine:isMyPr(proj,pr),marks:getPrMark(proj.id,prNumber),busy});
+      for (const entry of entries) {
+        if (entry.kind === 'hint') items.push(`<div class="cr-menu-hint">${escapeHtml(entry.text)}</div>`);
+        else if (entry.kind === 'separator') items.push('<div class="cr-menu-sep"></div>');
+        else pushItem(entry);
       }
-
-      // Open on GitHub always available (skip duplicate if already primary above)
-      const hasOpenPr = items.some((html) => /Open on GitHub/.test(html));
-      if (!hasOpenPr) {
-        if (items.length) items.push('<div class="cr-menu-sep"></div>');
-        pushItem({ action: 'open-pr', title: 'Open on GitHub', desc: 'Focus this PR' });
-      }
-
-      if (busy || !items.length) return '';
-
+      if (!items.length) return '';
       return `<div class="cr-menu${openCls}" data-menu-for="${escapeHtml(menuKey)}">${items.join('')}</div>`;
     }
 
@@ -4750,13 +5968,16 @@
       event.stopPropagation();
       const key = `${projectId}:${prNumber}`;
       if (!crAutofixEnabled || pendingCrAction.has(key) || pendingCrAction.has(projectId)) return;
+      openProjectQuietId = null;
       openCrMenuId = openCrMenuId === key ? null : key;
+      maybeDismissNotifyAlertFor(projectId, prNumber);
       renderProjects(lastProjects);
     }
 
     function closeCrMenus() {
-      if (!openCrMenuId) return;
+      if (!openCrMenuId && !openProjectQuietId) return;
       openCrMenuId = null;
+      openProjectQuietId = null;
       if (lastProjects.length) renderProjects(lastProjects);
     }
 
@@ -4767,6 +5988,7 @@
       const pr = (project?.prs || []).find((p) => p.number === prNumber);
       const url = pr?.cr?.taskUrl || project?.cr?.taskUrl;
       openCrMenuId = null;
+      openProjectQuietId = null;
       if (!url) {
         showToast('No CR task URL on this PR');
         renderProjects(lastProjects);
@@ -4780,9 +6002,328 @@
       event.preventDefault();
       event.stopPropagation();
       openCrMenuId = null;
+      openProjectQuietId = null;
       setWaitingOnAuthor(projectId, prNumber, waiting);
-      showToast(waiting ? `Marked #${prNumber} waiting on author` : `Cleared waiting on #${prNumber}`);
+      showToast(waiting ? `PR #${prNumber}: waiting on author` : `PR #${prNumber}: cleared waiting on author`);
       if (lastProjects.length) renderProjects(lastProjects);
+    }
+
+    function markPrQuiet(event, projectId, prNumber, kind, quiet) {
+      event.preventDefault();
+      event.stopPropagation();
+      openCrMenuId = null;
+      openProjectQuietId = null;
+      const project = lastProjects.find((p) => p.id === projectId);
+      const pr = (project?.prs || []).find((p) => p.number === prNumber) || { number: prNumber, ci: null, cr: {} };
+      if (kind === 'ci') setQuietCi(projectId, prNumber, quiet, pr);
+      else setQuietCr(projectId, prNumber, quiet, pr);
+      const label = kind === 'ci' ? 'CI' : 'CR';
+      showToast(quiet ? `PR #${prNumber}: ${label} quieted` : `PR #${prNumber}: ${label} unquieted`);
+      if (kind === 'ci') {
+        for (const k of [...notifyLatched]) {
+          if (k.startsWith(`ci-fail-${projectId}`)) notifyLatched.delete(k);
+        }
+      } else {
+        for (const k of [...notifyLatched]) {
+          if (k.startsWith(`cr-actionable-${projectId}`) || k.startsWith(`cr-done-${projectId}`)) {
+            notifyLatched.delete(k);
+          }
+        }
+      }
+      if (lastProjects.length) {
+        notifySnapshot = null;
+        renderProjects(lastProjects);
+      }
+    }
+
+    function markPrQuietBoth(event, projectId, prNumber, quiet) {
+      event.preventDefault();
+      event.stopPropagation();
+      openCrMenuId = null;
+      openProjectQuietId = null;
+      const project = lastProjects.find((p) => p.id === projectId);
+      const pr = (project?.prs || []).find((p) => p.number === prNumber) || { number: prNumber, ci: null, cr: {} };
+      setQuietCi(projectId, prNumber, quiet, pr);
+      setQuietCr(projectId, prNumber, quiet, pr);
+      showToast(quiet ? `PR #${prNumber}: CI and CR quieted` : `PR #${prNumber}: CI and CR unquieted`);
+      for (const k of [...notifyLatched]) {
+        if (
+          k.startsWith(`ci-fail-${projectId}`)
+          || k.startsWith(`cr-actionable-${projectId}`)
+          || k.startsWith(`cr-done-${projectId}`)
+        ) {
+          notifyLatched.delete(k);
+        }
+      }
+      if (lastProjects.length) {
+        notifySnapshot = null;
+        renderProjects(lastProjects);
+      }
+    }
+
+    async function queueCrReview(event, projectId, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!crAutofixEnabled) return;
+      const project = lastProjects.find((p) => p.id === projectId);
+      const pr = (project?.prs || []).find((p) => p.number === prNumber);
+      const cr = pr?.cr || project?.cr || {};
+      openCrMenuId = null;
+      openProjectQuietId = null;
+      try {
+        const res = await fetch('/api/cr-queue-review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'queue',
+            projectId,
+            pr: prNumber,
+            limitedUntil: cr.limitedUntil || undefined
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          showToast(data.error || 'Could not queue review');
+        } else {
+          const when = data.entry?.fireAt ? formatClock(data.entry.fireAt) : '';
+          showToast(when ? `Review queued — fires ~${when}` : 'Review queued');
+        }
+      } catch (err) {
+        showToast('Queue failed: ' + (err.message || String(err)));
+      }
+      fetchStatus();
+    }
+
+    async function cancelQueuedCrReview(event, projectId, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      openCrMenuId = null;
+      openProjectQuietId = null;
+      try {
+        const res = await fetch('/api/cr-queue-review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cancel', projectId, pr: prNumber })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          showToast(data.error || 'Nothing to cancel');
+        } else {
+          showToast(`PR #${prNumber}: queued review canceled`);
+        }
+      } catch (err) {
+        showToast('Cancel failed: ' + (err.message || String(err)));
+      }
+      fetchStatus();
+    }
+
+    // Merge: first click arms ("Confirm merge"), second click within MERGE_ARM_MS merges.
+    const MERGE_ARM_MS = 4000;
+    const mergeArmedAt = new Map();
+    const mergePending = new Set();
+
+    function prMergeButtonHtml(proj, pr) {
+      const key = `${proj.id}:${pr.number}`;
+      const pending = mergePending.has(key);
+      const armed = !pending && Date.now() - (mergeArmedAt.get(key) || 0) < MERGE_ARM_MS;
+      const label = pending ? 'Merging…' : armed ? 'Confirm merge' : 'Merge';
+      const cls = ['pr-merge-btn', armed ? 'armed' : '', pending ? 'pending' : ''].filter(Boolean).join(' ');
+      return `<button type="button" class="${cls}" ${pending ? 'disabled' : ''}
+        title="Approved, checks green, no conflicts — merge with the repo's default method"
+        onclick="mergePr(event, '${escapeHtml(proj.id)}', ${pr.number})">${label}</button>`;
+    }
+
+    // Merge blocked on a human (from GitHub mergeStateStatus/reviewDecision). Only surfaced once
+    // CI and CR are out of the way — except conflicts, which need fixing regardless.
+    const MERGE_BLOCK_UI = DashboardPrUI.mergeBlockUI;
+    function prMergeBlockKind(proj,pr) {
+      return DashboardPrUI.mergeBlockKind(pr,{quietCi:isQuietCi(proj.id,pr.number),quietCr:isQuietCr(proj.id,pr.number)});
+    }
+
+    function prMergeBlockHtml(proj, pr) {
+      const kind = prMergeBlockKind(proj, pr);
+      if (!kind || !pr.url) return '';
+      const ui = MERGE_BLOCK_UI[kind];
+      const url = escapeHtml(pr.url + ui.path);
+      return `<a class="pr-block-chip ${kind}" href="${url}" target="_blank" rel="noopener noreferrer"
+        title="${escapeHtml(ui.tip)}"
+        onclick="openPrBlockLink(event, '${escapeHtml(proj.id)}', '${url}')">${escapeHtml(ui.label)}</a>`;
+    }
+
+    function openPrBlockLink(event, projectId, url) {
+      event.stopPropagation();
+      const project = lastProjects.find((p) => p.id === projectId);
+      if (!project) return;
+      const links = Array.isArray(project.links) ? project.links : [];
+      const gh = links.find((l) => /github\.com/i.test(l.url || '') || /github/i.test(l.label || ''));
+      openInSpace(event, url, resolveLinkSpace(project, gh || null));
+    }
+
+    // npm soak (Dependabot age check): quiet until it ends, then offer the rebase as a fallback
+    // to the repo's own scheduled one. Same two-click arm as Merge.
+    const rebaseArmedAt = new Map();
+    const rebasePending = new Set();
+
+    function formatSoakUntil(iso) {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const sameDay = d.toDateString() === new Date().toDateString();
+      const day = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      return sameDay ? `today ~${time}` : `${day} ~${time}`;
+    }
+
+    function prSoakChipHtml(proj, pr) {
+      const soak = pr.soak;
+      const pkgs = (soak.packages || []).join(', ');
+      if (soak.state === 'soaking') {
+        const tip = `npm soak — ${pkgs || 'packages'} under 7 days old. Safe to merge after ${formatSoakUntil(soak.until)}; the repo schedules a Dependabot rebase then.`;
+        return `<span class="pr-soak-chip" title="${escapeHtml(tip)}">⏳ Soak · until ${escapeHtml(formatSoakUntil(soak.until))}</span>`;
+      }
+      const key = `${proj.id}:${pr.number}`;
+      const pending = rebasePending.has(key);
+      const armed = !pending && Date.now() - (rebaseArmedAt.get(key) || 0) < MERGE_ARM_MS;
+      const label = pending ? 'Rebasing…' : armed ? 'Confirm rebase' : 'Soak done · rebase';
+      const cls = ['pr-soak-chip', 'ready', armed ? 'armed' : ''].filter(Boolean).join(' ');
+      return `<button type="button" class="${cls}" ${pending ? 'disabled' : ''}
+        title="Soak ended — post @dependabot rebase so the age check re-runs (only needed if the scheduled rebase didn't land)"
+        onclick="dependabotRebase(event, '${escapeHtml(proj.id)}', ${pr.number})">${label}</button>`;
+    }
+
+    async function dependabotRebase(event, projectId, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = `${projectId}:${prNumber}`;
+      if (rebasePending.has(key)) return;
+      if (Date.now() - (rebaseArmedAt.get(key) || 0) >= MERGE_ARM_MS) {
+        rebaseArmedAt.set(key, Date.now());
+        renderProjects(lastProjects);
+        setTimeout(() => renderProjects(lastProjects), MERGE_ARM_MS + 50);
+        return;
+      }
+      rebaseArmedAt.delete(key);
+      rebasePending.add(key);
+      renderProjects(lastProjects);
+      try {
+        const res = await fetch('/api/pr-dependabot-rebase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, pr: prNumber })
+        });
+        const data = await res.json().catch(() => ({}));
+        showToast(res.ok && data.ok ? `Asked Dependabot to rebase #${prNumber}` : (data.error || `Rebase request failed for #${prNumber}`), 5000);
+      } catch (err) {
+        showToast('Rebase request failed: ' + (err.message || String(err)), 5000);
+      } finally {
+        rebasePending.delete(key);
+        fetchStatus();
+      }
+    }
+
+    async function mergePr(event, projectId, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = `${projectId}:${prNumber}`;
+      if (mergePending.has(key)) return;
+      if (Date.now() - (mergeArmedAt.get(key) || 0) >= MERGE_ARM_MS) {
+        mergeArmedAt.set(key, Date.now());
+        renderProjects(lastProjects);
+        setTimeout(() => { if (lastProjects.length) renderProjects(lastProjects); }, MERGE_ARM_MS + 50);
+        return;
+      }
+      mergeArmedAt.delete(key);
+      mergePending.add(key);
+      renderProjects(lastProjects);
+      try {
+        const res = await fetch('/api/pr-merge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, pr: prNumber })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          showToast(`Merged #${prNumber} (${data.method})`);
+        } else {
+          showToast(data.error || `Merge failed for #${prNumber}`, 5000);
+        }
+      } catch (err) {
+        showToast('Merge failed: ' + (err.message || String(err)), 5000);
+      } finally {
+        mergePending.delete(key);
+        fetchStatus();
+      }
+    }
+
+    async function resolveCrLeftovers(event, projectId, prNumber) {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = `${projectId}:${prNumber}`;
+      if (!crAutofixEnabled || pendingCrAction.has(key)) return;
+      openCrMenuId = null;
+      pendingCrAction.add(key);
+      renderProjects(lastProjects);
+      try {
+        const res = await fetch('/api/cr-resolve-leftovers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, pr: prNumber })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.resolved > 0) {
+          const extra = data.remainingNew > 0 ? ` · ${data.remainingNew} new still open` : '';
+          showToast(`Resolved ${data.resolved} leftover thread${data.resolved === 1 ? '' : 's'} on #${prNumber}${extra}`);
+        } else if (res.ok) {
+          showToast(`No leftover threads to resolve on #${prNumber}`);
+        }
+        if (data.error) showToast(data.error, 5000);
+      } catch (err) {
+        showToast('Resolve failed: ' + (err.message || String(err)));
+      } finally {
+        pendingCrAction.delete(key);
+        fetchStatus();
+      }
+    }
+
+    let lastCrQueueFireKey = null;
+    function maybeToastCrQueueFire(fire) {
+      if (!fire?.at || !fire.projectId) return;
+      const key = `${fire.at}:${fire.projectId}:${fire.prNumber}:${fire.ok}`;
+      if (key === lastCrQueueFireKey) return;
+      lastCrQueueFireKey = key;
+      // Only toast recent fires (avoid resurrecting old ones after refresh).
+      if (Date.now() - new Date(fire.at).getTime() > 2 * 60 * 1000) return;
+      if (fire.ok) {
+        showToast(`Queued review posted on #${fire.prNumber}`, 5000);
+      } else if (fire.error) {
+        showToast(`Queued review failed: ${fire.error}`, 5000);
+      }
+    }
+
+    async function prepareCodexFix(event,projectId,prNumber) {
+      event?.preventDefault();event?.stopPropagation();openCrMenuId=null;closeCrMenus();
+      try {
+        const response=await fetch(`/api/cr-codex?projectId=${encodeURIComponent(projectId)}&pr=${encodeURIComponent(prNumber)}`);
+        const data=await response.json();if(!response.ok)throw Error(data.error||'Could not prepare instructions');
+        document.getElementById('codex-fix-dialog')?.remove();
+        const dialog=document.createElement('dialog');dialog.id='codex-fix-dialog';dialog.style.cssText='margin:auto;max-width:500px;width:calc(100% - 48px);box-sizing:border-box;padding:24px;border:1px solid #30363d;border-radius:12px;background:#161b22;color:#e6edf3;font:inherit';
+        const title=document.createElement('h3');title.textContent=`Fix PR #${prNumber} with Codex`;title.style.marginTop='0';
+        const help=document.createElement('p');help.textContent='Copy the instructions, then paste and send them in the selected chat. Nothing is sent automatically.';
+        const label=document.createElement('label');label.textContent='Codex chat';
+        const select=document.createElement('select');select.setAttribute('aria-label','Codex chat');select.style.cssText='display:block;width:100%;margin:8px 0 16px;padding:8px';label.append(select);
+        const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=data.candidates.length?'Choose a chat…':'No Codex chats found for this project';select.append(placeholder);
+        for(const chat of data.candidates){const option=document.createElement('option');option.value=chat.id;option.textContent=chat.title+(chat.matchesPr?' · PR association':'');select.append(option);}
+        const associated=data.candidates.filter(c=>c.matchesPr);if(associated.length===1)select.value=associated[0].id;
+        const details=document.createElement('details'),summary=document.createElement('summary'),preview=document.createElement('p');summary.textContent='Preview instructions';preview.textContent=data.prompt;preview.style.cssText='white-space:pre-wrap;font-size:12px';details.append(summary,preview);
+        const note=document.createElement('textarea');note.placeholder='Additional guidance (optional)';note.maxLength=1000;note.style.cssText='display:block;box-sizing:border-box;width:100%;margin:16px 0;padding:8px';
+        const actions=document.createElement('div');actions.style.cssText='display:flex;gap:10px;justify-content:flex-end;margin-top:16px';
+        const cancel=document.createElement('button');cancel.className='btn';cancel.textContent='Cancel';cancel.onclick=()=>dialog.close();
+        const open=document.createElement('button');open.className='btn';open.textContent='Copy & open chat';open.disabled=!select.value;select.onchange=()=>{open.disabled=!select.value;};
+        open.onclick=async()=>{
+          const chat=data.candidates.find(c=>c.id===select.value);if(!chat)return;
+          try{await navigator.clipboard.writeText(data.prompt+(note.value.trim()?'\n\nAdditional guidance from Cedrick: '+note.value.trim():''));window.location.href=chat.openUrl;dialog.close();showToast('Copied. Paste and send in Codex.',6000);}catch(e){showToast('Could not copy instructions: '+e.message,6000);}
+        };
+        actions.append(cancel,open);dialog.append(title,help,label,details,note,actions);dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();
+      }catch(e){showToast(e.message||String(e),6000);}
     }
 
     async function triggerCrAction(event, projectId, action, prNumber) {
@@ -4820,7 +6361,8 @@
                 actionable: 0,
                 tip: 'CodeRabbit review in progress',
                 prNumber: prNum,
-                autofix: { phase: 'reviewing', at: Date.now() }
+                autofix: { phase: 'reviewing', at: Date.now() },
+                queuedReview: null
               }
             : {
                 ...(project.cr || {}),
@@ -4987,6 +6529,72 @@
       } catch { /* ignore */ }
     }
 
+    function findPortCollisions(projects) {
+      const byPort = new Map();
+      for (const proj of projects || []) {
+        for (const s of proj.services || []) {
+          const port = Number(s.port);
+          if (!Number.isFinite(port) || port <= 0) continue;
+          if (!byPort.has(port)) byPort.set(port, []);
+          byPort.get(port).push({
+            projectId: proj.id,
+            projectName: proj.name || proj.id,
+            serviceName: s.name || s.id || 'service'
+          });
+        }
+      }
+      return [...byPort.entries()]
+        .filter(([, list]) => list.length > 1)
+        .map(([port, list]) => ({ port, list }))
+        .sort((a, b) => a.port - b.port);
+    }
+
+    function renderPortCollisionBanner(projects) {
+      const wrap = document.getElementById('port-banner-wrap');
+      const el = document.getElementById('port-banner');
+      if (!wrap || !el) return;
+
+      const collisions = findPortCollisions(projects);
+      if (!collisions.length) {
+        wrap.classList.remove('visible');
+        el.innerHTML = '';
+        return;
+      }
+
+      const key = collisions.map((c) => `${c.port}:${c.list.map((x) => x.projectId).sort().join('+')}`).join('|');
+      try {
+        if (sessionStorage.getItem('port-banner-dismiss') === key) {
+          wrap.classList.remove('visible');
+          return;
+        }
+      } catch { /* ignore */ }
+
+      const pills = collisions.map((c) => {
+        const who = c.list.map((x) => `${x.projectName}/${x.serviceName}`).join(' · ');
+        return `<span class="bad">:${c.port} — ${escapeHtml(who)}</span>`;
+      });
+      pills.push('<span class="hint">Change one service port in Project Settings</span>');
+
+      el.innerHTML = `
+        <div class="body">
+          <strong>Port collision${collisions.length > 1 ? 's' : ''}</strong>
+          <div class="pills">${pills.join('')}</div>
+        </div>
+        <button type="button" onclick="dismissPortBanner()">Dismiss</button>`;
+      window.__portBannerDismissKey = key;
+      wrap.classList.add('visible');
+    }
+
+    function dismissPortBanner() {
+      const wrap = document.getElementById('port-banner-wrap');
+      if (wrap) wrap.classList.remove('visible');
+      try {
+        if (window.__portBannerDismissKey) {
+          sessionStorage.setItem('port-banner-dismiss', window.__portBannerDismissKey);
+        }
+      } catch { /* ignore */ }
+    }
+
     function linkColor(label) {
       return LINK_COLORS[String(label || '').toLowerCase()] || '#58a6ff';
     }
@@ -5093,6 +6701,7 @@
       closeLinkMenus(menu);
       menu.classList.toggle('open', willOpen);
       openLinkMenuId = willOpen ? projectId : null;
+      if (willOpen) pinOpenFloaters();
     }
 
     document.addEventListener('click', () => {
@@ -5115,6 +6724,60 @@
       if (!url) return;
       openInSpace(event, url, resolveLinkSpace(project, link || null));
     }
+
+    /** Previews open where the live site does, else where GitHub does, else "Me". */
+    function previewLinkSpace(project) {
+      const links = Array.isArray(project.links) ? project.links : [];
+      const live = links.find((l) =>
+        /\blive\b/i.test(l.label || '') || (project.liveUrl && l.url === project.liveUrl)
+      );
+      if (live) return resolveLinkSpace(project, live);
+      if (project.liveUrl && !links.length) return resolveLinkSpace(project, null);
+      const gh = links.find((l) => /github\.com/i.test(l.url || '') || /github/i.test(l.label || ''));
+      if (gh) return resolveLinkSpace(project, gh);
+      if (!links.length && project.repo && /github\.com/i.test(project.repo)) {
+        return resolveLinkSpace(project, null);
+      }
+      return arcSpaces.find((s) => s.toLowerCase() === 'me') || resolveLinkSpace(project, null);
+    }
+
+    function openPreviewLink(event, projectId, prNumber) {
+      const project = lastProjects.find((p) => p.id === projectId);
+      const pr = project && projectPrs(project).find((p) => p.number === prNumber);
+      const url = pr?.preview?.url;
+      if (!url) return;
+      const space = previewLinkSpace(project);
+      if (!space) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      openInSpace(event, url, space);
+    }
+
+    // Preview ↔ PR hover linking. Delegated so it survives poll re-renders.
+    let previewHover = null; // { kind: 'preview' | 'pr', pr: string }
+    function setPreviewHover(next) {
+      const same = previewHover && next && previewHover.kind === next.kind && previewHover.pr === next.pr;
+      if (same || (!previewHover && !next)) return;
+      document.querySelectorAll('#main-body .pr-card.preview-hover').forEach((el) => el.classList.remove('preview-hover'));
+      document.querySelectorAll('#main-body .link-card.preview.linked').forEach((el) => el.classList.remove('linked'));
+      previewHover = next;
+      if (!next) return;
+      if (next.kind === 'preview') {
+        document.querySelectorAll(`#main-body .pr-card[data-pr="${next.pr}"]`).forEach((el) => el.classList.add('preview-hover'));
+      } else {
+        document.querySelectorAll(`#main-body .link-card.preview[data-pr="${next.pr}"]`).forEach((el) => el.classList.add('linked'));
+      }
+    }
+    document.addEventListener('mouseover', (event) => {
+      const t = event.target;
+      if (!(t instanceof Element)) return;
+      const preview = t.closest('#main-body .link-card.preview[data-pr]');
+      if (preview) return setPreviewHover({ kind: 'preview', pr: preview.dataset.pr });
+      const card = t.closest('#main-body .pr-card[data-pr]');
+      if (card) return setPreviewHover({ kind: 'pr', pr: card.dataset.pr });
+      setPreviewHover(null);
+    });
 
     function openServiceLink(event, projectId, url) {
       const project = lastProjects.find((p) => p.id === projectId);
@@ -5259,6 +6922,9 @@
       document.getElementById('settings-modal-title').textContent = `Settings · ${project.name}`;
       document.getElementById('settings-name').value = project.name || '';
       document.getElementById('settings-description').value = project.description || '';
+      document.getElementById('settings-group').value = project.group || '';
+      document.getElementById('settings-group-options').innerHTML = knownGroupNames()
+        .map((g) => `<option value="${escapeHtml(g)}"></option>`).join('');
       document.getElementById('settings-avatar').value = project.avatar || '';
 
       const spaceSelect = document.getElementById('settings-arc-space');
@@ -5320,6 +6986,7 @@
             projectId: settingsProjectId,
             name: document.getElementById('settings-name').value,
             description: document.getElementById('settings-description').value,
+            group: document.getElementById('settings-group').value,
             avatar: document.getElementById('settings-avatar').value,
             defaultArcSpace: document.getElementById('settings-arc-space').value,
             links: collectLinkRows(),
@@ -5393,6 +7060,8 @@
       }, anyStarting ? 800 : 2500);
     }
 
+    const pendingCodexFix=new URLSearchParams(location.search).get('fixCr');
+    if(pendingCodexFix){const [pid,number]=pendingCodexFix.split(':');if(pid&&/^[1-9]\d*$/.test(number))prepareCodexFix(null,pid,Number(number));}
     loadNotifyPrefs();
     loadPrMarks();
     loadArcSpaces();

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Issues · project panel mock</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --bright: #f0f6fc;
+    --muted: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --orange: #ffa657;
+    --red: #ff7b72;
+    --yellow: #e3b341;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    min-height: 100vh; line-height: 1.45;
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: 18px 18px 64px; }
+  h1 { font-size: 20px; color: var(--bright); font-weight: 650; }
+  .lede { font-size: 13px; color: var(--muted); margin: 6px 0 16px; max-width: 760px; }
+  .note {
+    font-size: 12px; color: var(--muted); margin-bottom: 16px;
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); max-width: 760px;
+  }
+  .note strong { color: var(--bright); }
+
+  .shell {
+    border: 1px solid var(--border); border-radius: 12px;
+    background: #010409; overflow: hidden;
+  }
+  .main-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border);
+  }
+  .ident { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .av {
+    width: 40px; height: 40px; border-radius: 8px;
+    background: #21262d; border: 1px solid var(--border);
+    display: grid; place-items: center; font-weight: 700; color: var(--muted);
+  }
+  .name { font-size: 18px; font-weight: 650; color: var(--bright); }
+  .path { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  .body { padding: 14px 18px 18px; }
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    background: transparent; border: 0; color: var(--muted);
+    padding: 8px 12px; font-size: 12px; font-weight: 650; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab.active { color: var(--bright); border-bottom-color: var(--blue); }
+  .tab .n {
+    margin-left: 6px; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    background: #21262d; border: 1px solid var(--border); color: var(--muted);
+  }
+  .tab.active .n { color: #79b8ff; border-color: rgba(88,166,255,0.35); }
+
+  .panel {
+    border: 1px solid var(--border); border-radius: 10px; background: var(--card);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border);
+  }
+  .panel-head h2 { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    background: #21262d; border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .chip.active { border-color: rgba(88,166,255,0.45); color: #79b8ff; background: rgba(88,166,255,0.12); }
+
+  .issue {
+    display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: start;
+    padding: 10px 12px; border-bottom: 1px solid #21262d; cursor: grab;
+  }
+  .issue:last-child { border-bottom: 0; }
+  .issue.dragging { opacity: 0.45; }
+  .issue.drag-over { box-shadow: inset 0 2px 0 0 var(--blue); }
+  .grip { color: #484f58; font-size: 14px; line-height: 1.2; user-select: none; margin-top: 2px; }
+  .title { font-size: 13px; color: var(--bright); font-weight: 600; }
+  .meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px 10px; }
+  .meta .num { font-family: var(--mono); color: #79b8ff; }
+  .labels { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .label {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+    border: 1px solid transparent;
+  }
+  .label.bug { color: var(--red); background: rgba(248,81,73,0.12); border-color: rgba(248,81,73,0.35); }
+  .label.enh { color: var(--green); background: rgba(63,185,80,0.12); border-color: rgba(63,185,80,0.35); }
+  .label.chore { color: var(--yellow); background: rgba(227,179,65,0.12); border-color: rgba(227,179,65,0.35); }
+
+  .empty { display: none; padding: 28px 12px; text-align: center; color: var(--muted); font-size: 13px; }
+  .pane { display: none; }
+  .pane.active { display: block; }
+  .pr-card {
+    padding: 10px 12px; border-bottom: 1px solid #21262d;
+  }
+  .pr-card:last-child { border-bottom: 0; }
+  .pr-id { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .pr-title { font-size: 13px; color: var(--bright); font-weight: 600; margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1>Mock A — Issues inside a project</h1>
+    <p class="lede">
+      Keep the current project shell. Add an <strong>Issues</strong> tab beside Open PRs.
+      Manual order is per-project (localStorage), not GitHub project boards.
+    </p>
+    <div class="note">
+      <strong>Best for:</strong> “In this repo, what’s next?” ·
+      <strong>Weak for:</strong> picking across many repos ·
+      Drag rows to reorder (demo only).
+    </div>
+
+    <div class="shell">
+      <div class="main-top">
+        <div class="ident">
+          <div class="av">LD</div>
+          <div>
+            <div class="name">local-dev-dashboard</div>
+            <div class="path">~/Documents/Projects/local-dev-dashboard</div>
+          </div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab" data-tab="prs">Open PRs <span class="n">2</span></button>
+          <button type="button" class="tab active" data-tab="issues">Issues <span class="n">5</span></button>
+        </div>
+
+        <div class="pane" data-pane="prs">
+          <div class="panel">
+            <div class="pr-card">
+              <div class="pr-id">PR #48</div>
+              <div class="pr-title">Quiet CR / CI marks + notify jump</div>
+            </div>
+            <div class="pr-card">
+              <div class="pr-id">PR #47</div>
+              <div class="pr-title">Port collision banner</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane active" data-pane="issues">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Your order</h2>
+              <div class="filters">
+                <button type="button" class="chip active">Open</button>
+                <button type="button" class="chip">Assigned to me</button>
+                <button type="button" class="chip">Labeled backlog</button>
+              </div>
+            </div>
+            <div id="list">
+              <div class="issue" draggable="true" data-id="41">
+                <span class="grip" aria-hidden="true">⋮⋮</span>
+                <div>
+                  <div class="title">Sticky last-alert banner when sound fires off-tab</div>
+                  <div class="meta"><span class="num">#41</span><span>opened 2d ago</span><span>you</span></div>
+                </div>
+                <div class="labels"><span class="label enh">enhancement</span></div>
+              </div>
+              <div class="issue" draggable="true" data-id="38">
+                <span class="grip" aria-hidden="true">⋮⋮</span>
+                <div>
+                  <div class="title">Show GitHub issues with manual priority order</div>
+                  <div class="meta"><span class="num">#38</span><span>opened 5d ago</span><span>you</span></div>
+                </div>
+                <div class="labels"><span class="label enh">enhancement</span></div>
+              </div>
+              <div class="issue" draggable="true" data-id="29">
+                <span class="grip" aria-hidden="true">⋮⋮</span>
+                <div>
+                  <div class="title">CI notify uses wrong PR number when CR quieted</div>
+                  <div class="meta"><span class="num">#29</span><span>opened 1w ago</span></div>
+                </div>
+                <div class="labels"><span class="label bug">bug</span></div>
+              </div>
+              <div class="issue" draggable="true" data-id="22">
+                <span class="grip" aria-hidden="true">⋮⋮</span>
+                <div>
+                  <div class="title">Document agent-activity protocol in COPY prompt</div>
+                  <div class="meta"><span class="num">#22</span><span>opened 2w ago</span></div>
+                </div>
+                <div class="labels"><span class="label chore">docs</span></div>
+              </div>
+              <div class="issue" draggable="true" data-id="12">
+                <span class="grip" aria-hidden="true">⋮⋮</span>
+                <div>
+                  <div class="title">Optional: hide archived / wontfix from queue</div>
+                  <div class="meta"><span class="num">#12</span><span>opened 1mo ago</span></div>
+                </div>
+                <div class="labels"><span class="label chore">chore</span></div>
+              </div>
+            </div>
+            <div class="empty" id="empty">No open issues match filters.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.querySelectorAll('.tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b === btn));
+        const id = btn.dataset.tab;
+        document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === id));
+      });
+    });
+
+    const list = document.getElementById('list');
+    let dragEl = null;
+    list.querySelectorAll('.issue').forEach((row) => {
+      row.addEventListener('dragstart', () => {
+        dragEl = row;
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        list.querySelectorAll('.issue').forEach((r) => r.classList.remove('drag-over'));
+        dragEl = null;
+      });
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!dragEl || dragEl === row) return;
+        row.classList.add('drag-over');
+        const rect = row.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        list.insertBefore(dragEl, before ? row : row.nextSibling);
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    });
+  </script>
+</body>
+</html>

@@ -1,3 +1,8 @@
+import {classifyChecks,aggregateCi} from './ci-classification.mjs';
+import {PrCardLookup} from './pr-card-lookup.mjs';
+import {feedbackPrompt,feedbackCandidates} from './codex-feedback.mjs';
+import { PrMarks } from './pr-marks.mjs';
+import { RecentChats, discoverCodexChats } from './recent-chats.mjs';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -6,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { spawn, exec, execSync, execFile } from 'child_process';
 // --- CR Autofix (removable) ---
 import * as crAutofix from './cr-autofix.mjs';
+import * as prPreviews from './pr-previews.mjs';
 // --- end CR Autofix ---
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,6 +19,8 @@ const PORT = process.env.PORT || 4000;
 const CONFIG_PATH = path.join(__dirname, 'projects.json');
 const EXAMPLE_CONFIG_PATH = path.join(__dirname, 'projects.example.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const prCardLookup=new PrCardLookup();
+const prMarks = new PrMarks(path.join(__dirname, 'pr-marks.json'));
 const IS_WIN = process.platform === 'win32';
 
 function buildChildEnv(extra = {}) {
@@ -52,8 +60,59 @@ function run(cmd) {
   });
 }
 
+// The dashboard is itself registered as a project on PORT; never let Stop /
+// Restart / Stop all / Kill port signal our own pid, parent (npm), or group.
+const SELF_PIDS = new Set([String(process.pid), String(process.ppid)]);
+if (!IS_WIN) {
+  try {
+    const pgid = execSync(`ps -o pgid= -p ${process.pid}`, { encoding: 'utf8' }).trim();
+    if (pgid) SELF_PIDS.add(pgid);
+  } catch { /* ignore */ }
+}
+function isSelfPid(pid) {
+  return SELF_PIDS.has(String(pid).trim());
+}
+function isSelfPort(port) {
+  return Number(port) === Number(PORT);
+}
+const SELF_REFUSAL = { refused: true, message: 'That is the dashboard itself — not stopping it' };
+
+const SHUTDOWN_LOG = path.join(__dirname, 'shutdown.log');
+function logShutdown(reason) {
+  const lines = [`\n=== ${new Date().toISOString()} ${reason} pid=${process.pid} ppid=${process.ppid}`];
+  if (!IS_WIN) {
+    try {
+      lines.push(execSync('ps -axo pid,ppid,etime,command', { encoding: 'utf8', timeout: 2000 })
+        .split('\n')
+        .filter((l) => /\bkill\b|lsof|pkill|stop-all|kill-port|\/api\/(stop|restart)/.test(l))
+        .join('\n') || '(no kill-like processes running)');
+    } catch (e) {
+      lines.push(`(ps failed: ${e.message})`);
+    }
+  }
+  try { fs.appendFileSync(SHUTDOWN_LOG, lines.join('\n') + '\n'); } catch { /* ignore */ }
+}
+for (const [sig, num] of [['SIGTERM', 15], ['SIGHUP', 1]]) {
+  process.on(sig, () => {
+    logShutdown(`received ${sig}`);
+    saveGithubCache();
+    console.log(`\n[dashboard] received ${sig} — see shutdown.log`);
+    process.exit(128 + num);
+  });
+}
+
+function logControl(req, what) {
+  const from = req.headers['user-agent'] || '?';
+  const ref = req.headers.referer || req.headers.origin || '-';
+  console.log(`[control] ${new Date().toISOString()} ${what} (ua=${from.slice(0, 60)} ref=${ref})`);
+}
+
 function killPidTree(pid) {
   const id = String(pid);
+  if (isSelfPid(id)) {
+    console.warn(`[control] refused to kill dashboard pid/group ${id}`);
+    return Promise.resolve({ err: null, stdout: '', stderr: 'refused: dashboard itself', refused: true });
+  }
   if (IS_WIN) {
     return run(`taskkill /pid ${id} /T /F`);
   }
@@ -478,9 +537,11 @@ const STATE_RANK = {
   leftover: 6,
   // --- end CR Autofix ---
   actionable: 6,
+  // Active capacity limit must beat "reviewing" — otherwise a Review click
+  // that gets rate-limited keeps showing the reviewing chip/banner mismatch.
+  limited: 5.5,
   reviewing: 5,
   ready: 4,
-  limited: 3,
   pending: 2,
   clear: 1,
   empty: 0
@@ -493,7 +554,22 @@ const gitStateByProject = new Map();
 // Agent activity (LLM start/finish on a project/PR) + protocol handshake.
 const AGENT_PROTOCOL_VERSION = 2;
 const AGENT_IDLE_MS = 45 * 60 * 1000;
-const agentActivityByProject = new Map(); // projectId -> session
+const agentActivityByProject = new Map(); // project/chat key -> active session
+const recentChats = new RecentChats(path.join(__dirname, 'recent-chats.json'));
+let chatsRefreshPending = false;
+let chatsRefreshAt = 0;
+function refreshRecentChats() {
+  if (chatsRefreshPending || Date.now() - chatsRefreshAt < 30000) return;
+  chatsRefreshPending = true;
+  chatsRefreshAt = Date.now();
+  discoverCodexChats(config.projects).then(rows => {
+    recentChats.discovered = rows;
+    recentChats.discovery = { state: 'ready', updatedAt: new Date().toISOString() };
+  }).catch(error => {
+    recentChats.discovery = { ...recentChats.discovery, state: 'unavailable' };
+    console.warn('[recent chats]', error.message);
+  }).finally(() => { chatsRefreshPending = false; });
+}
 
 function readAgentInstructions() {
   try {
@@ -551,12 +627,8 @@ function resolveProjectForAgent(body = {}) {
 }
 
 function getAgentActivity(projectId) {
-  const activity = agentActivityByProject.get(projectId);
+  const activity = [...agentActivityByProject.values()].filter(a => a.projectId === projectId && Date.now() - a.updatedAt <= AGENT_IDLE_MS).sort((a,b) => b.updatedAt - a.updatedAt)[0];
   if (!activity) return null;
-  if (activity.phase === 'start' && Date.now() - activity.updatedAt > AGENT_IDLE_MS) {
-    agentActivityByProject.delete(projectId);
-    return null;
-  }
   if (activity.phase !== 'start') return null;
   return {
     working: true,
@@ -574,12 +646,15 @@ function setAgentActivity(projectId, body) {
     throw new Error('phase must be "start" or "finish"');
   }
   const now = Date.now();
+  const activityKey = JSON.stringify(body.chatId ? [projectId, body.agent || 'other', body.chatId] : [projectId, 'legacy']);
+  recentChats.record(projectId, body, now);
   if (phase === 'finish') {
-    agentActivityByProject.delete(projectId);
-    return { working: false };
+    agentActivityByProject.delete(activityKey);
+    return getAgentActivity(projectId) || { working: false };
   }
-  const prev = agentActivityByProject.get(projectId);
-  agentActivityByProject.set(projectId, {
+  const prev = agentActivityByProject.get(activityKey);
+  agentActivityByProject.set(activityKey, {
+    projectId,
     phase: 'start',
     summary: body.summary ? String(body.summary).slice(0, 200) : (prev?.summary || null),
     pr: body.pr != null ? (Number(body.pr) || String(body.pr)) : (prev?.pr || null),
@@ -638,9 +713,62 @@ function isRateLimitSignal(text) {
     || /(?:^|[^\d])0\s+reviews?\s+remaining\b/i.test(body);
 }
 
+/**
+ * A rate-limit signal is obsolete once CodeRabbit successfully reviews after it
+ * (actionable threads, "Actionable comments posted", "✅ Action performed", etc.).
+ * Without this, a stale "Review rate limited" reply keeps fallback+1h and hides Autofix.
+ */
+function crActivityClearsRateLimit({ comments = [], reviews = [], threads = [], afterMs }) {
+  const after = Number(afterMs);
+  if (!Number.isFinite(after)) return false;
+
+  for (const t of threads) {
+    if (t.isResolved) continue;
+    const c0 = t.comments?.nodes?.[0];
+    if (!isCrAuthor(c0?.author?.login)) continue;
+    const at = new Date(c0.createdAt || c0.created_at || 0).getTime();
+    if (Number.isFinite(at) && at > after) return true;
+  }
+
+  for (const x of [...comments, ...reviews]) {
+    if (!isCrAuthor(x.author?.login)) continue;
+    const at = new Date(
+      x.submittedAt || x.submitted_at || x.createdAt || x.created_at || 0
+    ).getTime();
+    if (!Number.isFinite(at) || at <= after) continue;
+    const body = String(x.body || '');
+    // Ignore later rate-limit replies; they reinforce the block.
+    if (isRateLimitSignal(body) && !/Actionable comments posted/i.test(body)) continue;
+    if (
+      /Actionable comments posted/i.test(body)
+      || /No actionable comments were generated/i.test(body)
+      || crFinishedClearFromText(body)
+      || /Action performed/i.test(body)
+      || (/✅/.test(body) && /action/i.test(body))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Prefer explicit relative countdowns over clock times over +1h fallback. */
 function pickBestRateWindow(candidates) {
   const rank = { relative: 3, clock: 2, hourly: 1, fallback: 0 };
+  // An expired countdown must not outrank a newer still-active signal (e.g. a
+  // retry rejected with "Review rate limited" and no refreshed countdown).
+  // A countdown (re)started at/after a vague signal supersedes it.
+  const relativeSince = candidates
+    .filter((w) => w?.quality === 'relative')
+    .map((w) => new Date(w.since).getTime());
+  candidates = candidates.filter((w) => {
+    if (!w || (w.quality !== 'fallback' && w.quality !== 'hourly')) return true;
+    const s = new Date(w.since).getTime();
+    return !relativeSince.some((r) => r >= s - 30000);
+  });
+  const now = Date.now();
+  const active = candidates.filter((w) => w?.until && new Date(w.until).getTime() > now);
+  if (active.length) candidates = active;
   let best = null;
   for (const w of candidates) {
     if (!w?.until) continue;
@@ -662,35 +790,70 @@ function pickBestRateWindow(candidates) {
   return best;
 }
 
-function parseRateLimitWindow(text, at) {
+const RELATIVE_COUNTDOWN_RES = [
+  /(?:available|ready|resets?|try\s+again)\s+in\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)/i,
+  /\bin\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)\b/i
+];
+
+function matchRelativeCountdown(body) {
+  for (const re of RELATIVE_COUNTDOWN_RES) {
+    const m = String(body || '').match(re);
+    if (m) return m;
+  }
+  return null;
+}
+
+/**
+ * When a relative countdown ("available in 19 minutes") started counting.
+ * CodeRabbit sometimes edits the limit comment without touching the countdown
+ * (anchor stays put) and sometimes rewrites it after a rejected retry (anchor
+ * moves to that edit). Remember the anchor per comment + countdown text; for
+ * a countdown we haven't seen before, use the edit time (later = never early).
+ */
+const countdownAnchors = new Map(); // `${login}|${createdAt}` -> { text, anchor }
+
+function relativeCountdownAnchor(c, countdownText) {
+  const created = c.createdAt || c.created_at;
+  const updated = c.updatedAt || c.updated_at || created;
+  const login = String(c.author?.login || c.user?.login || '').replace(/\[bot\]$/i, '').toLowerCase();
+  const key = `${login}|${created}`;
+  const prev = countdownAnchors.get(key);
+  if (prev && prev.text === countdownText) return prev.anchor;
+  countdownAnchors.set(key, { text: countdownText, anchor: updated });
+  if (countdownAnchors.size > 500) countdownAnchors.delete(countdownAnchors.keys().next().value);
+  return updated;
+}
+
+function parseRateLimitWindow(text, at, opts = {}) {
   const body = String(text || '');
   if (!isRateLimitSignal(body)) return null;
-  const since = at ? new Date(at) : new Date();
-  if (Number.isNaN(since.getTime())) return null;
+  const touch = at ? new Date(at) : new Date();
+  if (Number.isNaN(touch.getTime())) return null;
+  // Relative "in N minutes" counts from opts.relativeAnchor (see relativeCountdownAnchor).
+  const anchor = opts.relativeAnchor ? new Date(opts.relativeAnchor) : touch;
+  const sinceRel = Number.isNaN(anchor.getTime()) ? touch : anchor;
 
   // Prefer "available in 49 minutes" (CodeRabbit summarize edit) over a bare "in N …".
-  const availableIn = body.match(
-    /(?:available|ready|resets?|try\s+again)\s+in\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)/i
-  ) || body.match(/\bin\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)\b/i);
+  const availableIn = matchRelativeCountdown(body);
   if (availableIn) {
     const n = parseInt(availableIn[1], 10);
     const unit = availableIn[2].toLowerCase();
     const ms = /hour|hr/.test(unit) ? n * 3600000 : n * 60000;
     return {
       quality: 'relative',
-      since: since.toISOString(),
-      until: new Date(since.getTime() + ms).toISOString()
+      since: sinceRel.toISOString(),
+      until: new Date(sinceRel.getTime() + ms).toISOString()
     };
   }
 
   const untilAt = body.match(/(?:until|again\s+at|available\s+at|after)\s+(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
   if (untilAt) {
-    const until = parseLooseTimeOnDay(untilAt[1], since);
+    const until = parseLooseTimeOnDay(untilAt[1], touch);
     if (until) {
       const start = new Date(until.getTime() - 3600000);
       return {
         quality: 'clock',
-        since: (start > since ? since : start).toISOString(),
+        since: (start > touch ? touch : start).toISOString(),
         until: until.toISOString()
       };
     }
@@ -705,29 +868,33 @@ function parseRateLimitWindow(text, at) {
     const n = Math.max(1, parseInt(perHour[1], 10) || 1);
     return {
       quality: 'hourly',
-      since: since.toISOString(),
-      until: new Date(since.getTime() + n * 3600000).toISOString()
+      since: touch.toISOString(),
+      until: new Date(touch.getTime() + n * 3600000).toISOString()
     };
   }
 
   // Last resort: rolling ~1h window from this signal (often a short "rate limited" reply).
   return {
     quality: 'fallback',
-    since: since.toISOString(),
-    until: new Date(since.getTime() + 3600000).toISOString()
+    since: touch.toISOString(),
+    until: new Date(touch.getTime() + 3600000).toISOString()
   };
 }
 
 function collectRateLimitWindows({ comments = [], reviews = [] }) {
   const candidates = [];
   for (const c of comments) {
-    const at = c.updatedAt || c.updated_at || c.createdAt || c.created_at;
-    const w = parseRateLimitWindow(c.body, at);
+    const created = c.createdAt || c.created_at;
+    const updated = c.updatedAt || c.updated_at || created;
+    if (!isRateLimitSignal(c.body)) continue;
+    const countdown = matchRelativeCountdown(c.body);
+    const relativeAnchor = countdown ? relativeCountdownAnchor(c, countdown[0]) : created;
+    const w = parseRateLimitWindow(c.body, updated, { relativeAnchor });
     if (w) candidates.push(w);
   }
   for (const r of reviews) {
     const at = r.submittedAt || r.submitted_at;
-    const w = parseRateLimitWindow(r.body, at);
+    const w = parseRateLimitWindow(r.body, at, { relativeAnchor: at });
     if (w) candidates.push(w);
   }
   return pickBestRateWindow(candidates);
@@ -751,6 +918,15 @@ function isCrAppLabel(value) {
   return /coderabbit/i.test(String(value || ''));
 }
 
+/** Pending CodeRabbit commit status set before CodeRabbit's latest review landed. */
+function isStaleCrPendingStatus(s, lastCrReviewAt) {
+  if (!isCrAppLabel(s.context)) return false;
+  const state = String(s.state || '').toLowerCase();
+  if (state !== 'pending' && state !== 'expected') return false;
+  const setAt = new Date(s.updated_at || s.updatedAt || s.created_at || s.createdAt || 0).getTime();
+  return !!(lastCrReviewAt && setAt && lastCrReviewAt > setAt);
+}
+
 /**
  * Live "Review in progress" signal matching the GitHub Checks UI.
  * Prefer commit status context ("CodeRabbit" / pending) over bare queued suites
@@ -764,6 +940,9 @@ function crLiveReviewing({
   reviews = []
 } = {}) {
   const now = Date.now();
+  const lastCrReviewAt = Math.max(0, ...reviews
+    .filter((r) => isCrAuthor(r.author?.login || r.user?.login))
+    .map((r) => new Date(r.submittedAt || r.submitted_at || 0).getTime() || 0));
 
   let crStatusCompleted = false;
   for (const s of statuses) {
@@ -774,6 +953,11 @@ function crLiveReviewing({
     // Terminal CodeRabbit statuses (completed, skipped, failed, …) — never
     // “reviewing”, even if a queued check-suite shell is still hanging around.
     if (state === 'success' || state === 'failure' || state === 'error') {
+      crStatusCompleted = true;
+      continue;
+    }
+    // CodeRabbit sometimes never flips its status off "Review in progress" after posting.
+    if (isStaleCrPendingStatus(s, lastCrReviewAt)) {
       crStatusCompleted = true;
       continue;
     }
@@ -837,6 +1021,12 @@ function crLiveReviewing({
   return false;
 }
 
+/** CR reply to a command that did not run ("Action not completed", rate-limited). */
+function isRejectedCrCommand(body) {
+  const b = String(body || '');
+  return /Action not completed/i.test(b) || isRateLimitSignal(b);
+}
+
 function reviewingCrResult(prUrl, prNumber, isPrivate) {
   return {
     state: 'reviewing',
@@ -861,7 +1051,18 @@ function classifyPullRequestCr(pr, isPrivate) {
   }
 
   const reviews = (pr.reviews?.nodes || []).filter((r) => isCrAuthor(r.author?.login));
-  const comments = (pr.comments?.nodes || []).filter((c) => isCrAuthor(c.author?.login));
+  // The rate-limit notice is usually CR's first comment (edited in place), so
+  // include earlyComments — it can fall out of comments(last: N) on busy PRs.
+  const seenComment = new Set();
+  const comments = [...(pr.earlyComments?.nodes || []), ...(pr.comments?.nodes || [])]
+    .filter((c) => isCrAuthor(c.author?.login))
+    .filter((c) => {
+      const k = `${c.author?.login}|${c.createdAt}`;
+      if (seenComment.has(k)) return false;
+      seenComment.add(k);
+      return true;
+    })
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   // reviews(last: N) / comments(last: N) return chronological order; take newest.
   const newestReview = reviews.length ? reviews[reviews.length - 1] : null;
@@ -894,18 +1095,28 @@ function classifyPullRequestCr(pr, isPrivate) {
   if (rateWindow) {
     const untilMs = new Date(rateWindow.until).getTime();
     if (untilMs > now) {
-      return {
-        state: 'limited',
-        actionable: 0,
-        tip: 'Review rate-limited',
-        detail: `Capacity returns at ${formatClock(rateWindow.until)}`,
-        limitedUntil: rateWindow.until,
-        limitedSince: rateWindow.since,
-        limitQuality: rateWindow.quality || 'fallback',
-        isPrivate,
-        prUrl: pr.url,
-        prNumber: pr.number
-      };
+      const limitSinceMs = new Date(rateWindow.since).getTime();
+      const cleared = crActivityClearsRateLimit({
+        comments,
+        reviews,
+        threads,
+        afterMs: limitSinceMs
+      });
+      if (!cleared) {
+        return {
+          state: 'limited',
+          actionable: 0,
+          tip: 'Review rate-limited',
+          detail: `Capacity returns at ${formatClock(rateWindow.until)}`,
+          limitedUntil: rateWindow.until,
+          limitedSince: rateWindow.since,
+          limitQuality: rateWindow.quality || 'fallback',
+          isPrivate,
+          prUrl: pr.url,
+          prNumber: pr.number
+        };
+      }
+      // Successful review after the limit signal — fall through to actionable/clear.
     }
   }
 
@@ -970,6 +1181,7 @@ function classifyPullRequestCr(pr, isPrivate) {
         && age < 45 * 60 * 1000
         && /review command invocation|review_stack_entry_start|generating review|on it/i.test(body)
         && !/summarize by coderabbit\.ai/i.test(body)
+        && !isRejectedCrCommand(body)
       ) {
         reviewing = true;
       }
@@ -1025,20 +1237,33 @@ function classifyCiFromRollup(state) {
   return null;
 }
 
+const isPendingState = (state) => /^(pending|expected)$/i.test(String(state || ''));
+
+/**
+ * statusCheckRollup, except CodeRabbit's own commit status doesn't count as CI —
+ * it can sit on "Review in progress" long after real checks finished.
+ */
+function classifyCiFromCommit(commit) {
+ const contexts=(commit?.status?.contexts||[]).filter(c=>!isCrAppLabel(c.context));
+ const statusState=contexts.some(c=>/^(failure|error)$/i.test(c.state))?'failure':contexts.some(c=>isPendingState(c.state))?'pending':contexts.some(c=>/^success$/i.test(c.state))?'success':null;
+ const runs=(commit?.checkSuites?.nodes||[]).filter(s=>!isCrAppLabel(s.app?.slug||s.app?.name)).flatMap(s=>s.checkRuns?.nodes||[]);
+ return classifyChecks(statusState,runs,commit?.statusCheckRollup?.state);
+}
+
+/** Combined REST status state, ignoring CodeRabbit's own status context. */
+function nonCrCombinedState(statusData) {
+  const statuses = Array.isArray(statusData?.statuses) ? statusData.statuses : null;
+  if (!statuses) return statusData?.state || null;
+  const own = statuses.filter((s) => !isCrAppLabel(s.context));
+  if (own.some((s) => s.state === 'failure' || s.state === 'error')) return 'failure';
+  if (own.some((s) => isPendingState(s.state))) return 'pending';
+  if (own.some((s) => s.state === 'success')) return 'success';
+  return null;
+}
+
 // Aggregate open-PR CI from statusCheckRollup (matches the PR checks UI).
 function classifyRepoCi(prNodes) {
-  let sawPassing = false;
-  let sawRunning = false;
-  for (const pr of prNodes || []) {
-    const state = pr?.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state;
-    const one = classifyCiFromRollup(state);
-    if (one === 'failing') return 'failing';
-    if (one === 'running') sawRunning = true;
-    else if (one === 'passing') sawPassing = true;
-  }
-  if (sawRunning) return 'running';
-  if (sawPassing) return 'passing';
-  return null;
+ return aggregateCi((prNodes||[]).map(pr=>classifyCiFromCommit(pr?.commits?.nodes?.[0]?.commit)));
 }
 
 function thinCrForPr(cr) {
@@ -1055,11 +1280,46 @@ function thinCrForPr(cr) {
     prNumber: cr.prNumber || null,
     fill: cr.fill ?? null,
     autofix: cr.autofix || null,
-    taskUrl: cr.taskUrl || null
+    taskUrl: cr.taskUrl || null,
+    freshAfterReview: !!cr.freshAfterReview,
+    newCount: Number.isFinite(Number(cr.newCount)) ? Number(cr.newCount) : null,
+    leftoverCount: Number.isFinite(Number(cr.leftoverCount)) ? Number(cr.leftoverCount) : null
   };
 }
 
-function buildPrsList(pulls, { ciByNumber, crByNumber } = {}) {
+/** `${slug}#${n}` -> { state: mergeStateStatus, reviewDecision, headSha } from GraphQL. */
+const mergeInfoByPr = new Map();
+/** slug -> viewerDefaultMergeMethod (MERGE | SQUASH | REBASE). */
+const mergeMethodBySlug = new Map();
+
+/** GitHub says it can merge right now (approved, checks green, no conflicts) for this head. */
+function isPrMergeable(slug, p) {
+  const info = mergeInfoByPr.get(`${slug}#${p.number}`);
+  if (!info || info.state !== 'CLEAN') return false;
+  if (p.draft ?? p.isDraft) return false;
+  const headSha = p.head?.sha || p.headRefOid || null;
+  return !headSha || !info.headSha || headSha === info.headSha;
+}
+
+/**
+ * Why GitHub won't merge this PR yet, when a human has to act:
+ * review | changes | behind | conflicts | blocked. Null when clean, unknown, or stale.
+ */
+function prMergeBlock(slug, p) {
+  const info = mergeInfoByPr.get(`${slug}#${p.number}`);
+  if (!info || !info.state) return null;
+  if (p.draft ?? p.isDraft) return null;
+  const headSha = p.head?.sha || p.headRefOid || null;
+  if (headSha && info.headSha && headSha !== info.headSha) return null;
+  if (info.state === 'DIRTY') return 'conflicts';
+  if (info.state === 'BEHIND') return 'behind';
+  if (info.state !== 'BLOCKED') return null;
+  if (info.reviewDecision === 'CHANGES_REQUESTED') return 'changes';
+  if (info.reviewDecision === 'REVIEW_REQUIRED') return 'review';
+  return 'blocked';
+}
+
+function buildPrsList(pulls, { ciByNumber, crByNumber, slug } = {}) {
   return (pulls || []).slice(0, 10).map((p) => {
     const n = p.number;
     const cr = crByNumber?.get?.(n) || null;
@@ -1069,6 +1329,9 @@ function buildPrsList(pulls, { ciByNumber, crByNumber } = {}) {
       number: n,
       title: p.title || `PR #${n}`,
       url: p.html_url || p.url || null,
+      draft: !!(p.draft ?? p.isDraft),
+      mergeable: slug ? isPrMergeable(slug, p) : false,
+      mergeBlock: slug ? prMergeBlock(slug, p) : null,
       ci: ciByNumber?.get?.(n) ?? null,
       cr: thinCrForPr(cr),
       author: login
@@ -1083,25 +1346,15 @@ function buildPrsList(pulls, { ciByNumber, crByNumber } = {}) {
 }
 
 function setPrsForSlug(slug, pulls, opts) {
+  liveSlugs.add(slug);
   if (!pulls?.length) {
     prsBySlug.set(slug, []);
     return;
   }
-  prsBySlug.set(slug, buildPrsList(pulls, opts));
+  prsBySlug.set(slug, buildPrsList(pulls, { ...opts, slug }));
 }
 
-function aggregateCiFromMap(ciByNumber) {
-  let sawPassing = false;
-  let sawRunning = false;
-  for (const ci of ciByNumber.values()) {
-    if (ci === 'failing') return 'failing';
-    if (ci === 'running') sawRunning = true;
-    else if (ci === 'passing') sawPassing = true;
-  }
-  if (sawRunning) return 'running';
-  if (sawPassing) return 'passing';
-  return null;
-}
+function aggregateCiFromMap(ciByNumber) { return aggregateCi(ciByNumber.values()); }
 
 function mergeCrStates(perPr, openCount, isPrivate, slug) {
   if (!openCount) {
@@ -1137,11 +1390,35 @@ function mergeCrStates(perPr, openCount, isPrivate, slug) {
     }
   }
 
-  // Capacity restored but still no fresh review → ready (nudge to trigger).
+  // Capacity memory: keep showing limited while the window is open; nudge ready after.
   const mem = rateLimitMemory.get(slug);
-  if (mem && best && best.state !== 'limited' && best.state !== 'actionable' && best.state !== 'reviewing' && best.state !== 'clear') {
+  if (mem && best && best.state !== 'limited') {
     const untilMs = new Date(mem.until).getTime();
-    if (untilMs <= Date.now()) {
+    if (
+      untilMs > Date.now()
+      && (best.state === 'reviewing' || best.state === 'pending' || best.state === 'ready' || best.state === 'empty')
+    ) {
+      best = {
+        state: 'limited',
+        actionable: 0,
+        tip: 'Review rate-limited',
+        detail: `Capacity returns at ${formatClock(mem.until)}`,
+        limitedUntil: mem.until,
+        limitedSince: mem.since,
+        limitQuality: mem.quality || 'fallback',
+        isPrivate,
+        prUrl: mem.prUrl || best.prUrl,
+        prNumber: best.prNumber
+      };
+    } else if (
+      untilMs <= Date.now()
+      && best.state !== 'actionable'
+      && best.state !== 'reviewing'
+      && best.state !== 'clear'
+      && best.state !== 'leftover'
+      && best.state !== 'delivery'
+      && best.state !== 'autofixing'
+    ) {
       best = {
         state: 'ready',
         actionable: 0,
@@ -1155,8 +1432,14 @@ function mergeCrStates(perPr, openCount, isPrivate, slug) {
       };
     }
   }
-  if (best?.state === 'clear' || best?.state === 'actionable' || best?.state === 'reviewing') {
+  if (best?.state === 'clear' || best?.state === 'actionable' || best?.state === 'leftover') {
     rateLimitMemory.delete(slug);
+  }
+  if (best?.state === 'reviewing' || best?.state === 'autofixing') {
+    const openMem = rateLimitMemory.get(slug);
+    if (!openMem || new Date(openMem.until).getTime() <= Date.now()) {
+      rateLimitMemory.delete(slug);
+    }
   }
 
   if (!best) {
@@ -1193,7 +1476,10 @@ function mergeCrStates(perPr, openCount, isPrivate, slug) {
     fill,
     // --- CR Autofix (removable) ---
     autofix: best.autofix || null,
-    taskUrl: best.taskUrl || null
+    taskUrl: best.taskUrl || null,
+    freshAfterReview: !!best.freshAfterReview,
+    newCount: Number.isFinite(Number(best.newCount)) ? Number(best.newCount) : null,
+    leftoverCount: Number.isFinite(Number(best.leftoverCount)) ? Number(best.leftoverCount) : null
     // --- end CR Autofix ---
   };
 }
@@ -1350,34 +1636,44 @@ function ghApi(args) {
   });
 }
 
-function classifyCiFromRest(statusState, checkRuns) {
-  const runs = checkRuns || [];
-  let busy = false;
-  let failed = false;
-  let ok = false;
-  for (const run of runs) {
-    const conclusion = run.conclusion || null;
-    const status = run.status || null;
-    if (
-      conclusion === 'failure'
-      || conclusion === 'timed_out'
-      || conclusion === 'startup_failure'
-      || conclusion === 'action_required'
-    ) {
-      failed = true;
-    } else if (!conclusion && (status === 'queued' || status === 'in_progress' || status === 'waiting' || status === 'pending')) {
-      busy = true;
-    } else if (conclusion === 'success' || conclusion === 'neutral' || conclusion === 'skipped') {
-      ok = true;
+function classifyCiFromRest(statusState,checkRuns) { return classifyChecks(statusState,checkRuns); }
+
+/** REST comments/reviews → active `limited` CR state, or null. */
+function restRateLimitedCr({ pull, crComments, crReviews, isPrivate }) {
+  const rateWindow = collectRateLimitWindows({ comments: crComments, reviews: crReviews });
+  if (rateWindow && new Date(rateWindow.until).getTime() > Date.now()) {
+    const limitSinceMs = new Date(rateWindow.since).getTime();
+    const normComments = crComments.map((c) => ({
+      ...c,
+      author: { login: c.user?.login },
+      createdAt: c.created_at || c.createdAt
+    }));
+    const normReviews = crReviews.map((r) => ({
+      ...r,
+      author: { login: r.user?.login },
+      submittedAt: r.submitted_at || r.submittedAt
+    }));
+    const cleared = crActivityClearsRateLimit({
+      comments: normComments,
+      reviews: normReviews,
+      threads: [],
+      afterMs: limitSinceMs
+    });
+    if (!cleared) {
+      return {
+        state: 'limited',
+        actionable: 0,
+        tip: 'Review rate-limited',
+        detail: `Capacity returns at ${formatClock(rateWindow.until)}`,
+        limitedUntil: rateWindow.until,
+        limitedSince: rateWindow.since,
+        limitQuality: rateWindow.quality || 'fallback',
+        isPrivate,
+        prUrl: pull.html_url,
+        prNumber: pull.number
+      };
     }
   }
-  if (failed || statusState === 'failure' || statusState === 'error') return 'failing';
-  // Prefer concrete check runs over legacy combined status — empty forever-
-  // queued apps (Cursor/CodeRabbit shells) leave status=pending after green CI.
-  if (busy) return 'running';
-  if (ok) return 'passing';
-  if (statusState === 'pending') return 'running';
-  if (statusState === 'success') return 'passing';
   return null;
 }
 
@@ -1386,23 +1682,10 @@ function classifyCrFromRest({ pull, comments, reviews, reviewComments, suites, s
   const prNumber = pull.number;
   const crComments = (comments || []).filter((c) => isCrAuthor(c.user?.login));
   const crReviews = (reviews || []).filter((r) => isCrAuthor(r.user?.login));
-
-  let rateWindow = collectRateLimitWindows({ comments: crComments, reviews: crReviews });
   const now = Date.now();
-  if (rateWindow && new Date(rateWindow.until).getTime() > now) {
-    return {
-      state: 'limited',
-      actionable: 0,
-      tip: 'Review rate-limited',
-      detail: `Capacity returns at ${formatClock(rateWindow.until)}`,
-      limitedUntil: rateWindow.until,
-      limitedSince: rateWindow.since,
-      limitQuality: rateWindow.quality || 'fallback',
-      isPrivate,
-      prUrl,
-      prNumber
-    };
-  }
+
+  const limited = restRateLimitedCr({ pull, crComments, crReviews, isPrivate });
+  if (limited) return limited;
 
   // Live check/status beats stale clear from an earlier review cycle.
   if (crLiveReviewing({
@@ -1472,10 +1755,16 @@ function classifyCrFromRest({ pull, comments, reviews, reviewComments, suites, s
       && age < 20 * 60 * 1000
       && !/summarize by coderabbit\.ai/i.test(body)
       && /review command invocation|review_stack_entry_start|generating review|on it/i.test(body)
+      && !isRejectedCrCommand(body)
     ) {
       reviewing = true;
     }
-    if (!finished && /review command invocation|review_stack_entry_start/i.test(body) && age < 20 * 60 * 1000) {
+    if (
+      !finished
+      && /review command invocation|review_stack_entry_start/i.test(body)
+      && age < 20 * 60 * 1000
+      && !isRejectedCrCommand(body)
+    ) {
       const reviewAfter = newestReview && new Date(newestReview.submitted_at).getTime() > at;
       if (!reviewAfter && !/summarize by coderabbit\.ai/i.test(body)) reviewing = true;
     }
@@ -1553,6 +1842,8 @@ async function enrichCrViaRest(s, pulls) {
     return { rateLimited: true };
   }
   const issueComments = comments.ok ? comments.data : [];
+  prPreviews.updatePreviewFromComments(s.slug, n, issueComments);
+  prPreviews.updateSoakFromComments(s.slug, n, issueComments);
   let classified = classifyCrFromRest({
     pull,
     comments: issueComments,
@@ -1563,23 +1854,189 @@ async function enrichCrViaRest(s, pulls) {
     isPrivate: false
   });
   // --- CR Autofix (removable) ---
-  classified = crAutofix.overlayAutofix(classified, { slug: s.slug, comments: issueComments });
+  classified = crAutofix.overlayAutofix(classified, {
+    slug: s.slug,
+    comments: issueComments,
+    reviews: reviews.ok ? reviews.data : []
+  });
   // --- end CR Autofix ---
-  // mergeCrStates expects an array of per-PR classifications
-  const perPr = pulls.map((p, i) => (i === 0 ? classified : {
-    state: 'pending',
-    actionable: 0,
-    tip: null,
-    detail: null,
-    limitedUntil: null,
-    limitedSince: null,
-    isPrivate: false,
-    prUrl: p.html_url,
-    prNumber: p.number
+  // Older open PRs: one issue-comments call each, enough to catch a rate limit
+  // (CR's limit notice is an issue comment). Otherwise keep the last known
+  // per-PR state (usually from GraphQL) instead of a blank placeholder.
+  const prevPrs = new Map((prsBySlug.get(s.slug) || []).map((p) => [p.number, p.cr]));
+  const others = await Promise.all(pulls.slice(1).map(async (p, i) => {
+    const fallback = prevPrs.get(p.number) || {
+      state: 'pending',
+      actionable: 0,
+      tip: null,
+      detail: null,
+      limitedUntil: null,
+      limitedSince: null,
+      isPrivate: false
+    };
+    const keep = { ...fallback, prUrl: p.html_url, prNumber: p.number };
+    if (i >= REST_EXTRA_PR_LIMIT) return keep;
+    const res = await ghApi(['api', `repos/${s.owner}/${s.name}/issues/${p.number}/comments?per_page=40`]);
+    if (!res.ok) return keep;
+    prPreviews.updatePreviewFromComments(s.slug, p.number, res.data);
+    prPreviews.updateSoakFromComments(s.slug, p.number, res.data);
+    const crComments = res.data.filter((c) => isCrAuthor(c.user?.login));
+    const limited = restRateLimitedCr({ pull: p, crComments, crReviews: [], isPrivate: false });
+    if (limited) return limited;
+    // A limit we showed earlier that has now lapsed or been cleared → neutral.
+    if (keep.state === 'limited') {
+      return { ...keep, state: 'pending', limitedUntil: null, limitedSince: null, tip: null, detail: null };
+    }
+    return keep;
   }));
+  const perPr = [classified, ...others];
   crBySlug.set(s.slug, mergeCrStates(perPr, pulls.length, false, s.slug));
   return { ok: true, perPr };
 }
+
+/**
+ * Resolve CodeRabbit threads that Autofix left open. Only threads CR started
+ * before the latest Autofix "Completed" status — never findings from a later
+ * review. Re-reads GitHub at call time rather than trusting cached state.
+ */
+async function resolveCrLeftoverThreads(slug, prNumber) {
+  const query = `query {
+    repository(owner: "${slug.owner}", name: "${slug.name}") {
+      pullRequest(number: ${prNumber}) {
+        comments(last: 100) { nodes { author { login } body createdAt updatedAt } }
+        reviewThreads(first: 100) {
+          nodes { id isResolved comments(first: 1) { nodes { author { login } createdAt } } }
+        }
+      }
+    }
+  }`;
+  const gq = await ghApi(['api', 'graphql', '-f', `query=${query}`]);
+  if (gq.rateLimited) return { ok: false, status: 429, error: 'GitHub GraphQL is rate-limited — try again shortly' };
+  const pr = gq.data?.data?.repository?.pullRequest ?? gq.data?.repository?.pullRequest;
+  if (!pr) return { ok: false, error: gq.message || 'Could not load PR threads' };
+
+  const autofix = crAutofix.parseAutofixStatus(pr.comments?.nodes || []);
+  if (autofix?.phase !== 'completed') {
+    return { ok: false, status: 409, error: 'Autofix has not completed on this PR — nothing treated as leftover' };
+  }
+  const threads = pr.reviewThreads?.nodes || [];
+  const targets = threads.filter((t) => {
+    if (t.isResolved) return false;
+    const c0 = t.comments?.nodes?.[0];
+    if (!isCrAuthor(c0?.author?.login)) return false;
+    const at = new Date(c0.createdAt || 0).getTime();
+    return Number.isFinite(at) && at <= autofix.at + 2000;
+  });
+  const remainingNew = threads.filter((t) => {
+    if (t.isResolved) return false;
+    const c0 = t.comments?.nodes?.[0];
+    return isCrAuthor(c0?.author?.login) && !targets.includes(t);
+  }).length;
+
+  const mutation = 'mutation($id: ID!) { resolveReviewThread(input: { threadId: $id }) { thread { isResolved } } }';
+  let resolved = 0;
+  const failures = [];
+  for (const t of targets) {
+    const r = await ghApi(['api', 'graphql', '-f', `query=${mutation}`, '-F', `id=${t.id}`]);
+    const ok = (r.data?.data ?? r.data)?.resolveReviewThread?.thread?.isResolved === true;
+    if (ok) resolved += 1;
+    else failures.push(r.message || r.errors?.[0]?.message || (r.rateLimited ? 'rate-limited' : 'failed'));
+  }
+
+  // Reflect immediately; the next GraphQL refresh confirms.
+  const patch = (cr) => {
+    if (!cr || cr.prNumber !== prNumber) return cr;
+    const left = (targets.length - resolved) + remainingNew;
+    return left > 0
+      ? {
+          ...cr,
+          state: 'actionable',
+          actionable: left,
+          newCount: remainingNew,
+          leftoverCount: targets.length - resolved,
+          tip: crAutofix.formatNewLeftoverChip(remainingNew, targets.length - resolved) || `${left} actionable`,
+          autofix: null,
+          freshAfterReview: remainingNew > 0
+        }
+      : {
+          ...cr,
+          state: 'clear',
+          actionable: 0,
+          newCount: 0,
+          leftoverCount: 0,
+          tip: 'Good to go',
+          detail: 'Leftover Autofix threads resolved',
+          autofix: null,
+          freshAfterReview: false
+        };
+  };
+  if (resolved > 0) {
+    crBySlug.set(slug.slug, patch(crBySlug.get(slug.slug)));
+    const prs = prsBySlug.get(slug.slug);
+    if (prs) {
+      prsBySlug.set(slug.slug, prs.map((p) => (
+        p.number === prNumber ? { ...p, cr: patch({ ...p.cr, prNumber }) } : p
+      )));
+    }
+  }
+  return {
+    ok: failures.length === 0,
+    status: failures.length && !resolved ? 502 : undefined,
+    resolved,
+    attempted: targets.length,
+    remainingNew,
+    error: failures.length ? `${failures.length} thread(s) failed: ${failures[0]}` : undefined
+  };
+}
+
+/**
+ * Merge a PR only if GitHub reports it CLEAN at call time, pinned to that head
+ * commit. Uses the repo's default merge method for the gh account.
+ */
+async function mergePullRequest(slug, prNumber) {
+  const query = `query {
+    repository(owner: "${slug.owner}", name: "${slug.name}") {
+      viewerDefaultMergeMethod
+      pullRequest(number: ${prNumber}) { state isDraft mergeStateStatus headRefOid }
+    }
+  }`;
+  const gq = await ghApi(['api', 'graphql', '-f', `query=${query}`]);
+  if (gq.rateLimited) return { ok: false, status: 429, error: 'GitHub GraphQL is rate-limited — try again shortly' };
+  const repo = gq.data?.repository;
+  const pr = repo?.pullRequest;
+  if (!pr) return { ok: false, error: gq.message || 'Could not load PR' };
+  if (pr.state !== 'OPEN') return { ok: false, status: 409, error: `PR is ${String(pr.state).toLowerCase()}` };
+  if (pr.isDraft || pr.mergeStateStatus !== 'CLEAN') {
+    mergeInfoByPr.set(`${slug.slug}#${prNumber}`, { state: pr.mergeStateStatus, headSha: pr.headRefOid });
+    return { ok: false, status: 409, error: `Not mergeable right now (${String(pr.mergeStateStatus || 'unknown').toLowerCase()})` };
+  }
+  const method = String(repo.viewerDefaultMergeMethod || mergeMethodBySlug.get(slug.slug) || 'MERGE').toLowerCase();
+  const flag = method === 'squash' ? '--squash' : method === 'rebase' ? '--rebase' : '--merge';
+  const out = await new Promise((resolve) => {
+    execFile('gh', [
+      'pr', 'merge', String(prNumber),
+      '-R', slug.slug,
+      flag,
+      '--match-head-commit', pr.headRefOid
+    ], { timeout: 60000, env: buildChildEnv() }, (err, stdout, stderr) => {
+      resolve({ err, stdout: String(stdout || ''), stderr: String(stderr || '') });
+    });
+  });
+  if (out.err) {
+    return { ok: false, error: (out.stderr || out.err.message || 'Merge failed').trim().split('\n').pop() };
+  }
+  mergeInfoByPr.delete(`${slug.slug}#${prNumber}`);
+  const prs = prsBySlug.get(slug.slug);
+  if (prs) prsBySlug.set(slug.slug, prs.filter((p) => p.number !== prNumber));
+  if (openPrCounts.has(slug.slug)) {
+    openPrCounts.set(slug.slug, Math.max(0, (openPrCounts.get(slug.slug) || 1) - 1));
+  }
+  return { ok: true, method, prNumber };
+}
+
+const REST_EXTRA_PR_LIMIT = 5;
+/** CR states that make a queued review pointless (it ran, or there's feedback). */
+const CR_QUEUE_SETTLED = new Set(['actionable', 'clear', 'leftover', 'autofixing', 'delivery', 'reviewing']);
 
 // REST is the durable path (core API). GraphQL is optional enrichment for
 // CodeRabbit details — secondary GraphQL throttles were leaving cards stuck.
@@ -1602,7 +2059,7 @@ async function refreshOneRepoInsights(s) {
       ghApi(['api', `repos/${s.owner}/${s.name}/commits/${sha}/check-runs?per_page=50`])
     ]);
     if (!st.rateLimited && !checks.rateLimited) {
-      const statusState = st.ok ? st.data?.state : null;
+      const statusState = st.ok ? nonCrCombinedState(st.data) : null;
       const checkRuns = checks.ok ? (checks.data?.check_runs || []) : [];
       const one = classifyCiFromRest(statusState, checkRuns);
       if (one) ciByNumber.set(pulls[0].number, one);
@@ -1616,6 +2073,7 @@ async function refreshOneRepoInsights(s) {
     rateLimitMemory.delete(s.slug);
     crBySlug.set(s.slug, mergeCrStates([], 0, false, s.slug));
     prsBySlug.set(s.slug, []);
+    liveSlugs.add(s.slug);
     return { ok: true };
   }
 
@@ -1657,21 +2115,30 @@ async function refreshOneRepoInsights(s) {
       number
       title
       url
+      mergeStateStatus
+      reviewDecision
+      headRefOid
       reviews(last: 8) {
         nodes { author { login } state body submittedAt }
       }
       comments(last: 12) {
         nodes { author { login } body createdAt updatedAt }
       }
+      earlyComments: comments(first: 8) {
+        nodes { author { login } body createdAt updatedAt }
+      }
       reviewThreads(first: 30) {
         nodes {
           isResolved
-          comments(first: 1) { nodes { author { login } } }
+          comments(first: 1) {
+            nodes { author { login } createdAt }
+          }
         }
       }
       commits(last: 1) {
         nodes {
           commit {
+            committedDate
             statusCheckRollup { state }
             status {
               contexts { context state description createdAt }
@@ -1680,7 +2147,7 @@ async function refreshOneRepoInsights(s) {
               nodes {
                 app { name slug }
                 status conclusion updatedAt createdAt
-                checkRuns(first: 10) {
+                checkRuns(first: 100) {
                   nodes { name title status conclusion }
                 }
               }
@@ -1692,6 +2159,7 @@ async function refreshOneRepoInsights(s) {
     const query = `query {
       repository(owner: "${s.owner}", name: "${s.name}") {
         isPrivate
+        viewerDefaultMergeMethod
         ${prFields}
       }
     }`;
@@ -1703,20 +2171,35 @@ async function refreshOneRepoInsights(s) {
       const repo = gq.data.repository;
       const isPrivate = !!repo.isPrivate;
       const nodes = numbers.map((_, i) => repo[`p${i}`]).filter(Boolean);
+      if (repo.viewerDefaultMergeMethod) mergeMethodBySlug.set(s.slug, repo.viewerDefaultMergeMethod);
+      for (const pr of nodes) {
+        mergeInfoByPr.set(`${s.slug}#${pr.number}`, {
+          state: pr.mergeStateStatus || null,
+          reviewDecision: pr.reviewDecision || null,
+          headSha: pr.headRefOid || null
+        });
+      }
+      for (const pr of nodes) {
+        const prComments = [...(pr.earlyComments?.nodes || []), ...(pr.comments?.nodes || [])];
+        const headAt = pr.commits?.nodes?.[0]?.commit?.committedDate || null;
+        prPreviews.updatePreviewFromComments(s.slug, pr.number, prComments, headAt);
+        prPreviews.updateSoakFromComments(s.slug, pr.number, prComments, headAt);
+      }
       const perPr = nodes.map((pr) => {
         let classified = classifyPullRequestCr(pr, isPrivate);
         // --- CR Autofix (removable) ---
         classified = crAutofix.overlayAutofix(classified, {
           slug: s.slug,
-          comments: pr.comments?.nodes || []
+          comments: pr.comments?.nodes || [],
+          reviews: pr.reviews?.nodes || [],
+          threads: pr.reviewThreads?.nodes || []
         });
         // --- end CR Autofix ---
         return classified;
       });
       const gqCiByNumber = new Map(ciByNumber);
       for (const pr of nodes) {
-        const rollup = pr?.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state;
-        const one = classifyCiFromRollup(rollup);
+        const one = classifyCiFromCommit(pr?.commits?.nodes?.[0]?.commit);
         if (one) gqCiByNumber.set(pr.number, one);
       }
       const gqCi = aggregateCiFromMap(gqCiByNumber) || classifyRepoCi(nodes);
@@ -1770,14 +2253,27 @@ async function refreshOneRepoInsights(s) {
           actionable: merged.actionable ?? fromRest.actionable,
           taskUrl: fromRest.taskUrl || merged.taskUrl
         };
-      } else if (fromRest?.state === 'leftover' && merged?.state === 'actionable') {
+      } else if (
+        fromRest?.state === 'leftover'
+        && merged?.state === 'actionable'
+        && !merged.freshAfterReview
+      ) {
         merged = {
           ...merged,
           state: 'leftover',
           tip: fromRest.tip,
           detail: fromRest.detail,
           autofix: fromRest.autofix,
-          taskUrl: fromRest.taskUrl || merged.taskUrl
+          taskUrl: fromRest.taskUrl || merged.taskUrl,
+          freshAfterReview: false
+        };
+      } else if (merged?.freshAfterReview && merged?.state === 'actionable') {
+        // Keep fresh-after-re-review messaging; don't let older leftover rest win.
+        merged = {
+          ...merged,
+          autofix: null,
+          tip: merged.tip,
+          detail: merged.detail || 'Not stale leftovers — Autofix is the usual next step'
         };
       } else if (
         fromRest?.state === 'reviewing'
@@ -1803,9 +2299,30 @@ async function refreshOneRepoInsights(s) {
   return { ok: true };
 }
 
+function isActiveLimitedCr(cr) {
+  if (!cr || cr.state !== 'limited' || !cr.limitedUntil) return false;
+  const untilMs = new Date(cr.limitedUntil).getTime();
+  return Number.isFinite(untilMs) && untilMs > Date.now();
+}
+
 function preferCrState(rest, gq) {
   if (!gq) return rest || null;
   if (!rest) return gq;
+  // Active rate-limit beats reviewing/pending from the other path.
+  if (isActiveLimitedCr(gq) && !isActiveLimitedCr(rest) && rest.state !== 'actionable' && rest.state !== 'leftover' && rest.state !== 'delivery' && rest.state !== 'autofixing') {
+    return {
+      ...gq,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs
+    };
+  }
+  if (isActiveLimitedCr(rest) && !isActiveLimitedCr(gq) && gq.state !== 'actionable' && gq.state !== 'leftover' && gq.state !== 'delivery' && gq.state !== 'autofixing') {
+    return {
+      ...rest,
+      isPrivate: gq.isPrivate ?? rest.isPrivate,
+      openPrs: gq.openPrs ?? rest.openPrs
+    };
+  }
   // --- CR Autofix (removable) ---
   if (rest.state === 'autofixing' && gq.state !== 'autofixing') {
     if (gq.state === 'delivery' || gq.state === 'leftover' || gq.autofix?.phase === 'completed' || gq.autofix?.phase === 'failed' || gq.autofix?.phase === 'delivery') {
@@ -1834,6 +2351,26 @@ function preferCrState(rest, gq) {
     };
   }
   if (gq.state === 'leftover' || rest.state === 'leftover') {
+    // Fresh actionable/clear from GraphQL after a re-review must not stay stuck
+    // on sticky leftover (Autofix Completed comment is permanent on the PR).
+    if (rest.state === 'leftover' && gq.freshAfterReview && (gq.state === 'actionable' || gq.state === 'clear')) {
+      return {
+        ...gq,
+        isPrivate: gq.isPrivate ?? rest.isPrivate,
+        openPrs: gq.openPrs ?? rest.openPrs,
+        taskUrl: gq.taskUrl || rest.taskUrl || null,
+        autofix: null
+      };
+    }
+    if (gq.state === 'actionable' && gq.freshAfterReview) {
+      return {
+        ...gq,
+        isPrivate: gq.isPrivate ?? rest.isPrivate,
+        openPrs: gq.openPrs ?? rest.openPrs,
+        taskUrl: gq.taskUrl || rest.taskUrl || null,
+        autofix: null
+      };
+    }
     const src = gq.state === 'leftover' ? gq : rest;
     // Prefer GraphQL actionable count under leftover.
     return {
@@ -1929,10 +2466,100 @@ async function refreshGithubInsights() {
   }
 }
 
+// Disk snapshot of GitHub-derived state so a restart shows the last known PRs /
+// CI / CR immediately; the staggered refresh then overwrites repo by repo.
+const GH_CACHE_PATH = path.join(__dirname, 'github-cache.json');
+const GH_CACHE_VERSION = 1;
+const GH_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const GH_CACHE_SAVE_MS = 20000;
+/** Slugs refreshed live this process (vs restored from disk). */
+const liveSlugs = new Set();
+let ghCacheLastJson = '';
+
+function githubCacheSnapshot() {
+  return {
+    version: GH_CACHE_VERSION,
+    openPrCounts: Object.fromEntries(openPrCounts),
+    ciStateBySlug: Object.fromEntries(ciStateBySlug),
+    crBySlug: Object.fromEntries(crBySlug),
+    prsBySlug: Object.fromEntries(prsBySlug),
+    rateLimitMemory: Object.fromEntries(rateLimitMemory),
+    rateLimitBanner,
+    githubLogin,
+    previews: prPreviews.exportPreviewCache(),
+    soak: prPreviews.exportSoakCache()
+  };
+}
+
+function saveGithubCache() {
+  try {
+    const json = JSON.stringify(githubCacheSnapshot());
+    if (json === ghCacheLastJson) return;
+    const tmp = `${GH_CACHE_PATH}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ savedAt: new Date().toISOString(), ...JSON.parse(json) }));
+    fs.renameSync(tmp, GH_CACHE_PATH);
+    ghCacheLastJson = json;
+  } catch (e) {
+    console.log('GitHub cache save failed:', e.message);
+  }
+}
+
+function loadGithubCache() {
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(GH_CACHE_PATH, 'utf8'));
+  } catch {
+    return;
+  }
+  if (data?.version !== GH_CACHE_VERSION) return;
+  const age = Date.now() - new Date(data.savedAt || 0).getTime();
+  if (!(age >= 0 && age < GH_CACHE_MAX_AGE_MS)) return;
+  const restore = (map, obj) => {
+    for (const [k, v] of Object.entries(obj || {})) if (!map.has(k)) map.set(k, v);
+  };
+  restore(openPrCounts, data.openPrCounts);
+  restore(ciStateBySlug, data.ciStateBySlug);
+  restore(crBySlug, data.crBySlug);
+  restore(prsBySlug, data.prsBySlug);
+  restore(rateLimitMemory, data.rateLimitMemory);
+  if (data.rateLimitBanner) rateLimitBanner = data.rateLimitBanner;
+  if (!githubLogin && data.githubLogin) githubLogin = data.githubLogin;
+  prPreviews.importPreviewCache(data.previews);
+  prPreviews.importSoakCache(data.soak);
+  console.log(`Restored GitHub cache from ${Math.round(age / 1000)}s ago (${prsBySlug.size} repos)`);
+}
+
+loadGithubCache();
+setInterval(saveGithubCache, GH_CACHE_SAVE_MS);
+process.on('SIGINT', () => {
+  saveGithubCache();
+  process.exit(130);
+});
+
 setInterval(() => { refreshGithubInsights().catch(() => {}); }, GH_STAGGER_MS);
 refreshGithubInsights().catch(() => {});
 setInterval(() => { refreshGitStates().catch(() => {}); }, GIT_REFRESH_MS);
 refreshGitStates().catch(() => {});
+
+// --- CR Autofix (removable): queue review after rate limit (+60s), catch up after sleep ---
+if (crAutofix.CR_AUTOFIX_ENABLED) {
+  crAutofix.startCrReviewQueueWatcher({
+    postReview: (entry) => crAutofix.postCrActionComment({
+      owner: entry.owner,
+      name: entry.name,
+      prNumber: entry.prNumber,
+      action: 'review',
+      env: buildChildEnv()
+    }),
+    isPrOpen: async (entry) => {
+      const prs = prsBySlug.get(entry.slug);
+      // Unknown (not refreshed yet, or only restored from disk) → try fire.
+      if (!prs || !liveSlugs.has(entry.slug)) return true;
+      return prs.some((p) => p.number === entry.prNumber);
+    }
+  });
+}
+// --- end CR Autofix ---
 
 function applyPortToService(service, portNum) {
   service.port = portNum;
@@ -2028,6 +2655,7 @@ function startService(serviceId) {
 }
 
 async function stopService(serviceId) {
+  if (isSelfPort(findService(serviceId)?.service?.port)) return SELF_REFUSAL;
   const state = serviceState.get(serviceId);
   if (!state || !state.child || !state.pid) {
     const item = findService(serviceId);
@@ -2052,6 +2680,7 @@ async function stopService(serviceId) {
 }
 
 async function killPort(port) {
+  if (isSelfPort(port)) return SELF_REFUSAL;
   let pids = new Set();
 
   if (IS_WIN) {
@@ -2074,6 +2703,9 @@ async function killPort(port) {
     }
   }
 
+  const hadPids = pids.size > 0;
+  pids = new Set([...pids].filter((pid) => !isSelfPid(pid)));
+  if (hadPids && pids.size === 0) return SELF_REFUSAL;
   if (pids.size === 0) {
     return { message: `No valid PID found for port ${port}` };
   }
@@ -2167,6 +2799,7 @@ async function openUrl(rawUrl, space, focus = true) {
 async function restartService(serviceId) {
   const item = findService(serviceId);
   if (!item) throw new Error(`Service ${serviceId} not found`);
+  if (isSelfPort(item.service.port)) return SELF_REFUSAL;
 
   // Kill port or stop child
   if (item.service.port) {
@@ -2276,7 +2909,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/pr-marks' && req.method === 'POST') {
+    let body = '', tooLarge = false;
+    req.on('data', chunk => { if (tooLarge) return; body += chunk; if (Buffer.byteLength(body) > 65536) { tooLarge = true; res.writeHead(413); res.end('Request too large'); } });
+    req.on('end', () => {
+      if (tooLarge) return;
+      try {
+        const data = JSON.parse(body || '{}');
+        if (data.import) {
+          if (typeof data.import !== 'object' || Array.isArray(data.import)) throw Error('Invalid marks import');
+          for (const [key, mark] of Object.entries(data.import)) {
+            const index = key.lastIndexOf('#'), id = key.slice(0,index), pr = Number(key.slice(index+1));
+            if (!config.projects.some(p => p.id === id)) continue;
+            const patch = Object.fromEntries(['waiting','quietCi','quietCr'].filter(k => mark?.[k] != null).map(k => [k,mark[k]]));
+            prMarks.patch(id, pr, patch, {importOnly:true});
+          }
+        } else {
+          if (!config.projects.some(p => p.id === data.projectId)) throw Error('Unknown project');
+          prMarks.patch(data.projectId, Number(data.pr), data.patch);
+        }
+        res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,marks:prMarks.snapshot()}));
+      } catch (error) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:error.message})); }
+    });
+    return;
+  }
+
   if (url.pathname === '/api/status') {
+    refreshRecentChats();
     const projects = config.projects.map(proj => {
       const slug = parseRepoSlug(proj.repo);
       let cr = slug ? crBySlug.get(slug.slug) : null;
@@ -2293,6 +2952,47 @@ const server = http.createServer(async (req, res) => {
           return p;
         });
       }
+      // --- CR Autofix (removable): auto-queue review while rate-limited ---
+      if (crAutofix.CR_AUTOFIX_ENABLED && slug) {
+        const autoQueueIfLimited = (crState, prNumber) => {
+          if (!prNumber) return;
+          if (prs.some((p) => p.number === prNumber && p.draft)) return;
+          if (prPreviews.getSoak(slug.slug, prNumber)) return;
+          if (crState?.state === 'limited' && crState.limitedUntil) {
+            crAutofix.maybeAutoQueueCrReview({
+              projectId: proj.id,
+              owner: slug.owner,
+              name: slug.name,
+              prNumber,
+              limitedUntil: crState.limitedUntil
+            });
+            return;
+          }
+          // Drop the queue only on a real outcome — never on pending/empty
+          // placeholders (they don't prove the limit is gone).
+          if (
+            CR_QUEUE_SETTLED.has(crState?.state)
+            && crAutofix.getQueuedCrReview(proj.id, prNumber)
+          ) {
+            crAutofix.cancelQueuedCrReview(proj.id, prNumber, { byUser: false });
+          }
+        };
+        autoQueueIfLimited(cr, cr?.prNumber);
+        for (const p of prs) autoQueueIfLimited(p.cr, p.number);
+        cr = crAutofix.withQueuedReview(cr, proj.id, cr?.prNumber);
+        prs = prs.map((p) => ({
+          ...p,
+          cr: crAutofix.withQueuedReview(p.cr || {}, proj.id, p.number)
+        }));
+      }
+      // --- end CR Autofix ---
+      if (slug) {
+        prs = prs.map((p) => ({
+          ...p,
+          preview: prPreviews.getPreview(slug.slug, p.number),
+          soak: prPreviews.getSoak(slug.slug, p.number)
+        }));
+      }
       return {
         ...proj,
         openPrs: slug && openPrCounts.has(slug.slug) ? openPrCounts.get(slug.slug) : null,
@@ -2301,6 +3001,8 @@ const server = http.createServer(async (req, res) => {
         prs,
         git: gitStateByProject.get(proj.id) || null,
         agent: getAgentActivity(proj.id),
+        recentChats: recentChats.list(proj.id),
+        chatDiscovery: recentChats.discovery,
         services: proj.services.map(s => {
           const state = serviceState.get(s.id) || { status: 'stopped', logs: [], pid: null, startTime: null };
           const isPortOpen = portState.get(s.port) || false;
@@ -2329,21 +3031,105 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       projects,
+      groups: Array.isArray(config.groups) ? config.groups : [],
       globalLinks: Array.isArray(config.globalLinks) ? config.globalLinks : [],
       github: { login: githubLogin },
+      prMarks: prMarks.snapshot(),
       rateLimit: rateLimitBanner,
       apiLimit: {
         restUntil: ghRestNextAt > Date.now() ? new Date(ghRestNextAt).toISOString() : null,
         graphqlUntil: ghGraphqlNextAt > Date.now() ? new Date(ghGraphqlNextAt).toISOString() : null
       },
       // --- CR Autofix (removable) ---
-      features: { crAutofix: crAutofix.CR_AUTOFIX_ENABLED }
+      features: { crAutofix: crAutofix.CR_AUTOFIX_ENABLED },
+      crQueueFire: crAutofix.CR_AUTOFIX_ENABLED ? crAutofix.getLastCrQueueFire() : null
       // --- end CR Autofix ---
     }));
     return;
   }
 
   // --- CR Autofix (removable) ---
+  if (
+    crAutofix.CR_AUTOFIX_ENABLED
+    && url.pathname === '/api/cr-queue-review'
+    && req.method === 'POST'
+  ) {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const action = payload.action === 'cancel' ? 'cancel' : 'queue';
+        const project = payload.projectId ? findProject(payload.projectId) : null;
+        if (!project) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Project not found' }));
+          return;
+        }
+        const slug = parseRepoSlug(project.repo);
+        if (!slug) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Project needs a GitHub repo' }));
+          return;
+        }
+        const cr = crBySlug.get(slug.slug);
+        const prNumber = Number(payload.pr || payload.prNumber || cr?.prNumber);
+        if (!prNumber) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'No PR number' }));
+          return;
+        }
+        if (action === 'cancel') {
+          const result = crAutofix.cancelQueuedCrReview(project.id, prNumber);
+          res.writeHead(result.ok ? 200 : 404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+          return;
+        }
+        const limitedUntil = payload.limitedUntil || cr?.limitedUntil;
+        if (!limitedUntil || new Date(limitedUntil).getTime() <= Date.now()) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Not rate-limited right now — use Review instead',
+            limitedUntil: limitedUntil || null
+          }));
+          return;
+        }
+        const result = crAutofix.queueCrReview({
+          projectId: project.id,
+          owner: slug.owner,
+          name: slug.name,
+          prNumber,
+          limitedUntil
+        });
+        res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/pr-card' && req.method === 'GET') {
+    try {
+      const data=await prCardLookup.get(url.searchParams.get('repository')||'',Number(url.searchParams.get('number')),config.projects);
+      res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(data));
+    }catch(e){res.writeHead(502,{'Content-Type':'application/json'});res.end(JSON.stringify({error:e.message}));}
+    return;
+  }
+
+  if (url.pathname === '/api/cr-codex' && req.method === 'GET') {
+    try {
+      const project=findProject(url.searchParams.get('projectId')), pr=Number(url.searchParams.get('pr'));
+      if(!project)throw Error('Choose a registered project.');
+      const prompt=feedbackPrompt(project,pr);
+      res.writeHead(200,{'Content-Type':'application/json'});
+      res.end(JSON.stringify({prompt,candidates:feedbackCandidates(recentChats,project.id,pr)}));
+    } catch(e) {res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({error:e.message}));}
+    return;
+  }
+
   if (
     crAutofix.CR_AUTOFIX_ENABLED
     && (url.pathname === '/api/cr-action' || url.pathname === '/api/cr-autofix')
@@ -2386,6 +3172,9 @@ const server = http.createServer(async (req, res) => {
           res.end(JSON.stringify(result));
           return;
         }
+        if (action === 'review' && project?.id) {
+          crAutofix.cancelQueuedCrReview(project.id, prNumber, { byUser: false });
+        }
         if (cr) {
           crBySlug.set(slug.slug, crAutofix.overlayAutofix(
             { ...cr, prNumber },
@@ -2401,7 +3190,113 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+
+  if (
+    crAutofix.CR_AUTOFIX_ENABLED
+    && url.pathname === '/api/cr-resolve-leftovers'
+    && req.method === 'POST'
+  ) {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      const send = (code, obj) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(obj));
+      };
+      try {
+        const payload = JSON.parse(body || '{}');
+        const project = payload.projectId ? findProject(payload.projectId) : null;
+        const slug = parseRepoSlug(project?.repo);
+        const prNumber = Number(payload.pr);
+        if (!project || !slug || !prNumber) {
+          send(400, { error: 'projectId (with GitHub repo) and pr required' });
+          return;
+        }
+        logControl(req, `cr-resolve-leftovers ${slug.slug}#${prNumber}`);
+        const result = await resolveCrLeftoverThreads(slug, prNumber);
+        send(result.ok ? 200 : (result.status || 502), result);
+      } catch (err) {
+        send(400, { error: err.message });
+      }
+    });
+    return;
+  }
   // --- end CR Autofix ---
+
+  if (url.pathname === '/api/pr-merge' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      const send = (code, obj) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(obj));
+      };
+      try {
+        const payload = JSON.parse(body || '{}');
+        const project = payload.projectId ? findProject(payload.projectId) : null;
+        const slug = parseRepoSlug(project?.repo);
+        const prNumber = Number(payload.pr);
+        if (!project || !slug || !prNumber) {
+          send(400, { error: 'projectId (with GitHub repo) and pr required' });
+          return;
+        }
+        logControl(req, `pr-merge ${slug.slug}#${prNumber}`);
+        const result = await mergePullRequest(slug, prNumber);
+        send(result.ok ? 200 : (result.status || 502), result);
+      } catch (err) {
+        send(400, { error: err.message });
+      }
+    });
+    return;
+  }
+
+  // Soak finished but Dependabot hasn't rebased yet: nudge it.
+  if (url.pathname === '/api/pr-dependabot-rebase' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      const send = (code, obj) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(obj));
+      };
+      try {
+        const payload = JSON.parse(body || '{}');
+        const project = payload.projectId ? findProject(payload.projectId) : null;
+        const slug = parseRepoSlug(project?.repo);
+        const prNumber = Number(payload.pr);
+        if (!project || !slug || !prNumber) {
+          send(400, { error: 'projectId (with GitHub repo) and pr required' });
+          return;
+        }
+        logControl(req, `dependabot-rebase ${slug.slug}#${prNumber}`);
+        const pull = await ghApi(['api', `repos/${slug.owner}/${slug.name}/pulls/${prNumber}`]);
+        if (!pull.ok) {
+          send(502, { error: pull.message || 'Could not load PR' });
+          return;
+        }
+        if (!/dependabot/i.test(pull.data?.user?.login || '')) {
+          send(409, { error: `#${prNumber} isn't a Dependabot PR` });
+          return;
+        }
+        if (pull.data?.state !== 'open') {
+          send(409, { error: `#${prNumber} is ${pull.data?.state || 'not open'}` });
+          return;
+        }
+        const posted = await ghApi([
+          'api', `repos/${slug.owner}/${slug.name}/issues/${prNumber}/comments`,
+          '-f', 'body=@dependabot rebase'
+        ]);
+        if (!posted.ok) {
+          send(502, { error: posted.message || 'Failed to post @dependabot rebase' });
+          return;
+        }
+        send(200, { ok: true, prNumber });
+      } catch (err) {
+        send(400, { error: err.message });
+      }
+    });
+    return;
+  }
 
   if (url.pathname === '/api/start' && req.method === 'POST') {
     let body = '';
@@ -2426,6 +3321,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const { serviceId } = JSON.parse(body || '{}');
+        logControl(req, `stop ${serviceId}`);
         const result = await stopService(serviceId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
@@ -2443,6 +3339,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const { serviceId } = JSON.parse(body || '{}');
+        logControl(req, `restart ${serviceId}`);
         const result = await restartService(serviceId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
@@ -2455,6 +3352,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/restart-all' && req.method === 'POST') {
+    logControl(req, 'restart-all');
     const results = [];
     for (const proj of config.projects) {
       for (const s of proj.services) {
@@ -2472,6 +3370,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/stop-all' && req.method === 'POST') {
+    logControl(req, 'stop-all');
     for (const proj of config.projects) {
       for (const s of proj.services) {
         await stopService(s.id);
@@ -2489,7 +3388,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         const payload = JSON.parse(body || '{}');
-        const { id, name, directory, description, command, args, port, url: serviceUrl, repo, liveUrl, protocol } = payload;
+        const { id, name, directory, description, command, args, port, url: serviceUrl, repo, liveUrl, protocol, group } = payload;
         if (!name || !directory || !port) {
           throw new Error('name, directory, and port are required fields');
         }
@@ -2509,6 +3408,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (description) project.description = description;
+        if (typeof group === 'string' && group.trim()) project.group = group.trim();
         if (repo) project.repo = normalizeRepoUrl(repo);
         if (liveUrl) project.liveUrl = String(liveUrl).trim();
         enrichProjectLinks(project);
@@ -2645,6 +3545,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const { port } = JSON.parse(body || '{}');
+        logControl(req, `kill-port ${port}`);
         const result = await killPort(Number(port));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
@@ -2721,6 +3622,11 @@ const server = http.createServer(async (req, res) => {
           const space = payload.defaultArcSpace.trim();
           if (space) project.defaultArcSpace = space;
           else delete project.defaultArcSpace;
+        }
+        if (typeof payload.group === 'string') {
+          const group = payload.group.trim();
+          if (group) project.group = group;
+          else delete project.group;
         }
         if (Array.isArray(payload.links)) {
           const links = [];

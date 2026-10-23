@@ -1,0 +1,223 @@
+    /* Unified GitHub chip — carries CodeRabbit review state. */
+    .gh-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .gh {
+      --gh-color: #8b949e;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      border: 1.5px solid color-mix(in srgb, var(--gh-color) 42%, transparent);
+      background: color-mix(in srgb, var(--gh-color) 14%, #21262d);
+      color: color-mix(in srgb, var(--gh-color) 72%, #ffffff);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .gh .badge {
+      padding: 0 5px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--gh-color) 85%, #ffffff);
+      color: #0d1117;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.5;
+      position: relative;
+      z-index: 1;
+    }
+
+    .gh .label { position: relative; z-index: 1; }
+
+    .gh.empty { --gh-color: #8b949e; }
+    .gh.pending {
+      --gh-color: #8b949e;
+      border-style: dashed;
+    }
+    .gh.clear { --gh-color: #3fb950; }
+
+    /* Opaque interior so the conic comet only paints the border ring. */
+    .gh.reviewing {
+      color: #e3b341;
+      border: 1.5px solid transparent;
+      background:
+        linear-gradient(#2a2416, #2a2416) padding-box,
+        linear-gradient(#5a4a22, #5a4a22) border-box;
+    }
+
+    .gh.actionable {
+      --gh-color: #f85149;
+      animation: gh-heartbeat 1.35s ease-in-out infinite;
+    }
+    .gh.actionable .badge { background: #ff7b72; color: #0d1117; }
+
+    .gh.limited {
+      --gh-color: var(--limited);
+      --fill: 0%;
+      color: #ffc48a;
+      border-color: rgba(255, 166, 87, 0.55);
+      overflow: hidden;
+      background:
+        linear-gradient(
+          90deg,
+          rgba(255, 166, 87, 0.38) 0%,
+          rgba(255, 166, 87, 0.38) var(--fill),
+          #21262d var(--fill),
+          #21262d 100%
+        );
+    }
+
+    .gh.ready {
+      --gh-color: var(--limited);
+      color: #ffc48a;
+      border-color: rgba(255, 166, 87, 0.65);
+      background: rgba(255, 166, 87, 0.28);
+      animation: gh-ready-throb 1.4s ease-in-out infinite;
+    }
+
+    @keyframes gh-heartbeat {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+      15% { transform: scale(1.07); box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.25); }
+      30% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+      45% { transform: scale(1.045); box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.16); }
+      60% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+    }
+
+    @keyframes gh-ready-throb {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 166, 87, 0); }
+      50% { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(255, 166, 87, 0.22); }
+    }
+
+
+    .cr-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      left: auto;
+      z-index: 50;
+      min-width: 220px;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      display: none;
+    }
+    .cr-menu.open { display: block; }
+    .cr-menu-hint {
+      padding: 6px 9px 4px;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      text-align: left;
+    }
+    .cr-menu-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 6px;
+    }
+    .cr-menu-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 2px;
+      width: 100%;
+      text-align: left;
+      padding: 7px 9px;
+      border-radius: 6px;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .cr-menu-item:hover:not(:disabled) { background: #30363d; }
+    .cr-menu-item:disabled {
+      color: var(--muted);
+      cursor: default;
+      opacity: 0.55;
+    }
+    .cr-menu-item:disabled.primary {
+      opacity: 0.9;
+    }
+    .cr-menu-item:disabled.primary .title {
+      color: #79b8ff;
+    }
+    .cr-menu-item .title {
+      color: var(--text-bright);
+      text-align: left;
+      width: 100%;
+    }
+    .cr-menu-item.primary .title { color: #79b8ff; }
+    .cr-menu-item.danger .title { color: #ffb4ae; }
+    .cr-menu-item .desc {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--muted);
+      line-height: 1.35;
+      text-align: left;
+      width: 100%;
+    }
+    .cr-menu-item.nested {
+      padding-left: 18px;
+    }
+    .cr-menu-item.nested .title::before {
+      content: '↳ ';
+      color: #6e7681;
+      font-weight: 500;
+    }
+
+
+    .gh.autofixing,
+    .gh.reviewing-busy {
+      --gh-color: #e3b341;
+      color: #e3b341;
+      border-color: rgba(210, 153, 34, 0.45);
+      background: rgba(210, 153, 34, 0.14);
+    }
+
+    .gh.leftover {
+      --gh-color: #f85149;
+      color: #ff7b72;
+      border-color: rgba(248, 81, 73, 0.45);
+      background: rgba(248, 81, 73, 0.14);
+    }
+
+    .gh.delivery {
+      --gh-color: #ff7b72;
+      color: #ffb4ae;
+      border-color: rgba(248, 81, 73, 0.5);
+      background: rgba(248, 81, 73, 0.12);
+    }
+
+
+    .pr-block-chip {
+      --block-color: #8b949e;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--block-color);
+      background: color-mix(in srgb, var(--block-color) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--block-color) 55%, transparent);
+      border-radius: 999px;
+      padding: 2px 11px;
+      white-space: nowrap;
+      text-decoration: none;
+      transition: background 0.15s ease;
+    }
+    .pr-block-chip:hover { background: color-mix(in srgb, var(--block-color) 26%, transparent); }
+    .pr-block-chip.review { --block-color: #58a6ff; }
+    .pr-block-chip.changes { --block-color: #ffa657; }
+    .pr-block-chip.behind { --block-color: #e3b341; }
+    .pr-block-chip.conflicts { --block-color: #ff7b72; }
+.pr-lifecycle { display:inline-flex;align-items:center;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;background:color-mix(in srgb,#a371f7 14%,transparent);color:light-dark(#7143a5,#c3a1f4); }
+.pr-lifecycle.closed { color:light-dark(#a43b38,#f18d85);background:color-mix(in srgb,#f85149 12%,transparent); }
