@@ -1,3 +1,4 @@
+import {reconcileCrSummary} from './pr-cr-status.mjs';
 import {classifyChecks,aggregateCi} from './ci-classification.mjs';
 import {PrCardLookup} from './pr-card-lookup.mjs';
 import {feedbackPrompt,feedbackCandidates} from './codex-feedback.mjs';
@@ -2224,7 +2225,7 @@ async function refreshOneRepoInsights(s) {
       });
 
       const fromGq = mergeCrStates(perPr, pulls.length, isPrivate, s.slug);
-      const fromRest = crBySlug.get(s.slug);
+      const fromRest = reconcileCrSummary(crBySlug.get(s.slug), perPr);
       // GraphQL is better for unresolved threads; don't let it regress a live
       // REST "reviewing" signal back to pending.
       let merged = preferCrState(fromRest, fromGq);
@@ -2943,15 +2944,11 @@ const server = http.createServer(async (req, res) => {
       cr = crAutofix.finalizeAutofixForStatus(cr, slug?.slug);
       // --- end CR Autofix ---
       let prs = slug ? (prsBySlug.get(slug.slug) || []) : [];
-      if (cr && prs.length) {
-        // Mirror sticky autofix/leftover onto the matching PR card.
-        prs = prs.map((p) => {
-          if (cr.prNumber && p.number === cr.prNumber) {
-            return { ...p, cr: thinCrForPr({ ...p.cr, ...cr, prNumber: p.number }) };
-          }
-          return p;
-        });
-      }
+      // Apply optimistic actions to each PR independently. A repository summary
+      // contains totals across PRs and must never replace an individual count.
+      if (slug) prs = prs.map(p => ({...p,
+        cr: thinCrForPr(crAutofix.finalizeAutofixForStatus(p.cr, slug.slug))
+      }));
       // --- CR Autofix (removable): auto-queue review while rate-limited ---
       if (crAutofix.CR_AUTOFIX_ENABLED && slug) {
         const autoQueueIfLimited = (crState, prNumber) => {
