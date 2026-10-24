@@ -6,6 +6,6 @@
   "description": "Local process control plane and port dashboard",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test recent-chats.test.mjs chat-status.test.mjs pr-marks.test.mjs codex-feedback.test.mjs pr-card-lookup.test.mjs ci-classification.test.mjs"
+    "test": "node --test recent-chats.test.mjs chat-status.test.mjs pr-marks.test.mjs codex-feedback.test.mjs pr-card-lookup.test.mjs ci-classification.test.mjs pr-cr-status.test.mjs"
   }
 }
